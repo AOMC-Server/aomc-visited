@@ -84,11 +84,11 @@ public final class VisitedChunks {
 			}
 			open(serverKey(client));
 		}
-		String key = dimension.identifier().toString();
+		String key = dimension.location().toString();
 		if (!WEBMAP_DIMENSIONS.contains(key)) {
 			return false;
 		}
-		long pos = ChunkPos.pack(x, z);
+		long pos = ChunkPos.asLong(x, z);
 		if (differs) {
 			lastWrite.computeIfAbsent(key, k -> new Long2LongOpenHashMap()).put(pos, ++writes);
 		}
@@ -99,7 +99,7 @@ public final class VisitedChunks {
 			return false;
 		}
 		if (added) {
-			regionCounts.computeIfAbsent(key, k -> new Long2IntOpenHashMap()).addTo(ChunkPos.pack(x >> 5, z >> 5), 1);
+			regionCounts.computeIfAbsent(key, k -> new Long2IntOpenHashMap()).addTo(ChunkPos.asLong(x >> 5, z >> 5), 1);
 			toggleHash(key, pos, false);
 		}
 		if (nowChanged) {
@@ -111,12 +111,12 @@ public final class VisitedChunks {
 
 	public synchronized boolean isChanged(String key, int x, int z) {
 		LongOpenHashSet chunks = changed.get(key);
-		return chunks != null && chunks.contains(ChunkPos.pack(x, z));
+		return chunks != null && chunks.contains(ChunkPos.asLong(x, z));
 	}
 
 	public synchronized int regionHash(String key, int regionX, int regionZ) {
 		Long2IntOpenHashMap hashes = regionHashes.get(key);
-		return hashes == null ? 0 : hashes.get(ChunkPos.pack(regionX, regionZ));
+		return hashes == null ? 0 : hashes.get(ChunkPos.asLong(regionX, regionZ));
 	}
 
 	public synchronized Map<String, LongOpenHashSet> takeChangedRegions() {
@@ -130,14 +130,14 @@ public final class VisitedChunks {
 		Long2IntOpenHashMap hashes = regionHashes.computeIfAbsent(key, k -> new Long2IntOpenHashMap());
 		LongOpenHashSet regions = changedRegions.computeIfAbsent(key, k -> new LongOpenHashSet());
 		int x = ChunkPos.getX(pos), z = ChunkPos.getZ(pos);
-		long own = ChunkPos.pack(x >> 5, z >> 5);
+		long own = ChunkPos.asLong(x >> 5, z >> 5);
 		hashes.put(own, hashes.get(own) ^ mix(pos, changedMark ? 1 : 0));
 		regions.add(own);
 		if (changedMark) {
 			return;
 		}
-		for (long neighbour : new long[] {ChunkPos.pack((x - 1) >> 5, z >> 5), ChunkPos.pack((x + 1) >> 5, z >> 5),
-				ChunkPos.pack(x >> 5, (z - 1) >> 5), ChunkPos.pack(x >> 5, (z + 1) >> 5)}) {
+		for (long neighbour : new long[] {ChunkPos.asLong((x - 1) >> 5, z >> 5), ChunkPos.asLong((x + 1) >> 5, z >> 5),
+				ChunkPos.asLong(x >> 5, (z - 1) >> 5), ChunkPos.asLong(x >> 5, (z + 1) >> 5)}) {
 			if (neighbour != own) {
 				hashes.put(neighbour, hashes.get(neighbour) ^ mix(pos, 2));
 				regions.add(neighbour);
@@ -151,12 +151,12 @@ public final class VisitedChunks {
 
 	public synchronized boolean contains(String key, int x, int z) {
 		LongOpenHashSet chunks = records.get(key);
-		return chunks != null && chunks.contains(ChunkPos.pack(x, z));
+		return chunks != null && chunks.contains(ChunkPos.asLong(x, z));
 	}
 
 	public synchronized int regionCount(String key, int regionX, int regionZ) {
 		Long2IntOpenHashMap counts = regionCounts.get(key);
-		return counts == null ? 0 : counts.get(ChunkPos.pack(regionX, regionZ));
+		return counts == null ? 0 : counts.get(ChunkPos.asLong(regionX, regionZ));
 	}
 
 	public synchronized void open(String serverKey) {
@@ -268,7 +268,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int clear(ResourceKey<Level> dimension) {
-		return clear(dimension.identifier().toString());
+		return clear(dimension.location().toString());
 	}
 
 	public synchronized int clearAll() {
@@ -344,7 +344,7 @@ public final class VisitedChunks {
 				toggleHash(export.key(), pos, true);
 			}
 			written.remove(pos);
-			counts.addTo(ChunkPos.pack(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), -1);
+			counts.addTo(ChunkPos.asLong(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), -1);
 			forgotten++;
 		}
 		dirty.add(export.key());
@@ -363,7 +363,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int count(ResourceKey<Level> dimension) {
-		LongOpenHashSet chunks = records.get(dimension.identifier().toString());
+		LongOpenHashSet chunks = records.get(dimension.location().toString());
 		return chunks == null ? 0 : chunks.size();
 	}
 
@@ -444,7 +444,7 @@ public final class VisitedChunks {
 					LongOpenHashSet chunks = new LongOpenHashSet();
 					for (int i = 2; i < fields.length; i++) {
 						String[] xz = fields[i].split(",");
-						chunks.add(ChunkPos.pack(Integer.parseInt(xz[0]), Integer.parseInt(xz[1])));
+						chunks.add(ChunkPos.asLong(Integer.parseInt(xz[0]), Integer.parseInt(xz[1])));
 					}
 					exports.put(number, new Export(fields[1], chunks, 0));
 					nextExport = Math.max(nextExport, number + 1);
@@ -464,7 +464,7 @@ public final class VisitedChunks {
 		for (LongIterator it = chunks.iterator(); it.hasNext(); ) {
 			long pos = it.nextLong();
 			if (recorded.add(pos)) {
-				counts.addTo(ChunkPos.pack(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), 1);
+				counts.addTo(ChunkPos.asLong(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), 1);
 				toggleHash(key, pos, false);
 			}
 			if (changedChunks.contains(pos) && recordedChanged.add(pos)) {
@@ -520,7 +520,7 @@ public final class VisitedChunks {
 			}
 			String[] fields = line.split(",");
 			try {
-				long pos = ChunkPos.pack(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]));
+				long pos = ChunkPos.asLong(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]));
 				chunks.add(pos);
 				if (fields.length > 2 && fields[2].equals("c")) {
 					changedChunks.add(pos);

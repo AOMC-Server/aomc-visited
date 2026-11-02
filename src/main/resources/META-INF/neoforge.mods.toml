@@ -1,0 +1,34 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "aomc_visited"
+version = "${version}"
+displayName = "AOMC Visited"
+description = "Remembers where you have been, so you can export those areas from Xaero's World Map for the community webmap."
+authors = "sunngoose"
+
+[[mixins]]
+config = "aomc_visited.mixins.json"
+
+[[dependencies.aomc_visited]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.aomc_visited]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version}]"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.aomc_visited]]
+modId = "xaeroworldmap"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"

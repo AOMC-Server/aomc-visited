@@ -50,15 +50,15 @@ public final class Chat {
 	public static MutableComponent button(String label, ChatFormatting colour, String command, String hover) {
 		return Component.literal("[" + label + "]").withStyle(style -> style
 				.withColor(colour)
-				.withClickEvent(new ClickEvent.RunCommand(command))
-				.withHoverEvent(new HoverEvent.ShowText(Component.literal(hover))));
+				.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+				.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(hover))));
 	}
 
 	public static MutableComponent openButton(String label, Path path) {
 		return Component.literal("[" + label + "]").withStyle(style -> style
 				.withColor(ChatFormatting.AQUA)
-				.withClickEvent(new ClickEvent.OpenFile(path))
-				.withHoverEvent(new HoverEvent.ShowText(Component.literal(path.toString()))));
+				.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, path.toString()))
+				.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(path.toString()))));
 	}
 
 	/** Minecraft chat can't centre text, so this pads with spaces for the chat's current width. */
@@ -90,8 +90,8 @@ public final class Chat {
 
 	public static void status(Minecraft client, String text, ChatFormatting colour) {
 		if (client.player != null) {
-			client.player.sendOverlayMessage(Component.literal(NAME + ": ").withStyle(ChatFormatting.DARK_AQUA)
-					.append(Component.literal(text).withStyle(colour)));
+			client.player.displayClientMessage(Component.literal(NAME + ": ").withStyle(ChatFormatting.DARK_AQUA)
+					.append(Component.literal(text).withStyle(colour)), true);
 		}
 	}
 }

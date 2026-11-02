@@ -1,13 +1,14 @@
 package io.github.sh4sh.aomcvisited;
 
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import xaero.map.MapProcessor;
 import xaero.map.WorldMapSession;
 import xaero.map.gui.ExportScreen;
@@ -38,15 +39,17 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 	}
 
 	static void registerEvents() {
-		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+		NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
 			// Our own export turns highlights off in the exporter: hiding them would make Xaero reload every region.
-			if (screen instanceof ExportScreen && !XaeroExport.active()) {
+			if (event.getScreen() instanceof ExportScreen && !XaeroExport.active()) {
 				exportScreenOpen = true;
 				refreshAll();
-				ScreenEvents.remove(screen).register(removed -> {
-					exportScreenOpen = false;
-					refreshAll();
-				});
+			}
+		});
+		NeoForge.EVENT_BUS.addListener(ScreenEvent.Closing.class, event -> {
+			if (event.getScreen() instanceof ExportScreen && exportScreenOpen) {
+				exportScreenOpen = false;
+				refreshAll();
 			}
 		});
 	}
@@ -67,7 +70,7 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		}
 		changed.forEach((key, regions) -> {
 			MapDimension mapDimension = processor.getMapWorld()
-					.getDimension(ResourceKey.create(Registries.DIMENSION, Identifier.parse(key)));
+					.getDimension(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(key)));
 			if (mapDimension != null) {
 				regions.forEach(region -> mapDimension.getHighlightHandler()
 						.clearCachedHash(ChunkPos.getX(region), ChunkPos.getZ(region)));
@@ -85,7 +88,7 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 	}
 
 	private static String key(ResourceKey<Level> dimension) {
-		return dimension.identifier().toString();
+		return dimension.location().toString();
 	}
 
 	private static boolean recorded(ResourceKey<Level> dimension, int x, int z) {

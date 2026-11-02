@@ -2,11 +2,11 @@ name: Build
 
 on:
   push:
-    branches: ["main"]
+    branches: ["neoforge-1.21.1"]
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   changes:
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 25
+          java-version: 21
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -49,18 +49,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aomc-visited
+          name: aomc-visited-neoforge-1.21.1
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
 
-      - name: Release a new version
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          version=$(grep '^version=' gradle.properties | cut -d= -f2)
-          if ! gh release view "v$version" >/dev/null 2>&1; then
-            gh release create "v$version" "build/libs/aomc-visited-$version.jar" \
-              --target "$GITHUB_SHA" --title "$version" --generate-notes
-          fi
+      # No releases from this branch yet: builds are only attached to the run for testing. When it's ready,
+      # bring back main's release step; the "+neoforge-1.21.1" version suffix keeps its tags apart.

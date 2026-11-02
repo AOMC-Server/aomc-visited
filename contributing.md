@@ -34,18 +34,21 @@ Under `<game dir>/aomc_visited/`:
 
 ## Building
 
-- Minecraft 26.3, Fabric, Java 25 (set `JAVA_HOME` if Gradle picks an older one).
-- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`. Gradle fetches Xaero's World Map
-  from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and compiles against it.
+- This branch (`neoforge-1.21.1`): Minecraft 1.21.1, NeoForge (ModDevGradle), Java 21, for the Create server and
+  its webmap at `create.diorite.xyz`. `main` is the Fabric 26.3 version. Gradle downloads Java 21 if it isn't
+  installed; it can run on a newer one.
+- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`; versions on this branch end in
+  `+neoforge-1.21.1`. Gradle fetches Xaero's World Map from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and compiles against it.
 - **Bump `version` in `gradle.properties` for every build handed out for testing**, so the jar name and
-  Fabric's mod list show which build is installed.
+  the mod list show which build is installed.
 - `./gradlew runClient` needs a desktop session.
 
 ## Branches, CI and releases
 
 - Work on a feature branch and open a pull request.
-- CI (`.github/workflows/build.yml`) builds every pull request and every push to `main`, and attaches the
-  jar to the run as an artifact.
+- CI (`.github/workflows/build.yml`) builds every pull request and every push to `main` (on this branch:
+  `neoforge-1.21.1`), and attaches the jar to the run as an artifact.
 - Releases: increment version in `gradle.properties`, push to `main`, CI tags the
   commit `v<version>` and publishes a GitHub release with the jar.
+- The `neoforge-1.21.1` branch doesn't publish releases yet: CI builds it and attaches the jar to the run.
 

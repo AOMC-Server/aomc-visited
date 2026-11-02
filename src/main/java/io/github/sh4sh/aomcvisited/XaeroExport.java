@@ -1,14 +1,14 @@
 package io.github.sh4sh.aomcvisited;
 
-import com.mojang.blaze3d.Blaze3D;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -111,7 +111,7 @@ public final class XaeroExport {
 		List<String> names = keys.stream().map(VisitedChunks::shortName).toList();
 		int tiles = keys.stream().flatMap(key -> plan(key).stream()).mapToInt(ExportAreas.Box::tiles).sum();
 		ResourceKey<Level> showing = processor.getMapWorld().getCurrentDimensionId();
-		boolean switches = keys.size() > 1 || showing == null || !keys.getFirst().equals(showing.identifier().toString());
+		boolean switches = keys.size() > 1 || showing == null || !keys.getFirst().equals(showing.location().toString());
 		Chat.send(client, Chat.info("Exporting " + String.join(", ", names) + ". Progress shows above your hotbar."
 				+ (switches ? " Xaero's map switches dimension while it works, and the" : " The")
 				+ (tiles > LARGE_EXPORT_TILES
@@ -172,7 +172,7 @@ public final class XaeroExport {
 				finish();
 				return;
 			}
-			target = ResourceKey.create(Registries.DIMENSION, Identifier.parse(keys.get(dimension)));
+			target = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(keys.get(dimension)));
 			processor.getMapWorld().setCustomDimensionId(target);
 			processor.checkForWorldUpdate();
 			stage(Stage.SWITCHING);
@@ -265,13 +265,13 @@ public final class XaeroExport {
 			MutableComponent message;
 			if (anyImages && mode == Mode.UPLOAD) {
 				message = Chat.info("Export cleaned: map exports/" + root.getFileName() + ". Uploading it to"
-						+ " map.diorite.xyz now. It's marked as uploaded once the webmap has processed it.");
+						+ " create.diorite.xyz now. It's marked as uploaded once the webmap has processed it.");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
 				if (!uploads.isEmpty()) {
 					WebmapUpload.start(client, List.copyOf(uploads));
 				}
 			} else if (anyImages) {
-				Blaze3D.openPath(root);
+				Util.getPlatform().openFile(root.toFile());
 				message = Chat.success("Export cleaned and ready to upload: map exports/" + root.getFileName()
 						+ (keys.size() == 1 ? ". Upload it to the " + VisitedChunks.shortName(keys.getFirst()) + " map."
 								: ". Upload each dimension's folder to its own map."));
@@ -373,15 +373,15 @@ public final class XaeroExport {
 		private void closeScreenLater() {
 			ExportScreen screen = doneScreen;
 			job.client.execute(() -> {
-				if (job.client.gui.screen() == screen) {
-					job.client.gui.setScreen(null);
+				if (job.client.screen == screen) {
+					job.client.setScreen(null);
 				}
 			});
 		}
 
 		void continueAfterArea() {
-			if (job.client.gui.screen() == doneScreen) {
-				job.client.gui.setScreen(null);
+			if (job.client.screen == doneScreen) {
+				job.client.setScreen(null);
 			}
 			if (doneProblem != null) {
 				fail(doneProblem);
@@ -406,7 +406,7 @@ public final class XaeroExport {
 					exported.add(pos);
 				}
 			}
-			TileMasker.Recorded recorded = (x, z) -> chunks.contains(ChunkPos.pack(x, z));
+			TileMasker.Recorded recorded = (x, z) -> chunks.contains(ChunkPos.asLong(x, z));
 			boolean tiles = EXPORT_FOLDER.matcher(written.getFileName().toString()).matches();
 			Path image = null;
 			try {
@@ -489,7 +489,7 @@ public final class XaeroExport {
 				if (job.mode == Mode.EXPORT) {
 					WebmapUpload.remember(upload);
 					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
-							"/visited upload " + number, "Uploads " + where() + " to map.diorite.xyz, then marks it as"
+							"/visited upload " + number, "Uploads " + where() + " to create.diorite.xyz, then marks it as"
 									+ " uploaded (asks to confirm first)"));
 				}
 				job.markButtons.add(Chat.button("Mark " + VisitedChunks.shortName(key) + " as uploaded",

@@ -1,6 +1,6 @@
 package io.github.sh4sh.aomcvisited.mixin;
 
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -11,7 +11,8 @@ import java.util.Set;
 public class XaeroMixinPlugin implements IMixinConfigPlugin {
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-		return FabricLoader.getInstance().isModLoaded("xaeroworldmap");
+		// Mixins apply before ModList exists, so ask the loading list.
+		return LoadingModList.get().getModFileById("xaeroworldmap") != null;
 	}
 
 	@Override

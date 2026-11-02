@@ -1,9 +1,11 @@
 # AOMC Visited
 
-A Fabric mod for the About Oliver Minecraft server. This mod records where you've been and 
-automatically prepares Xaero exports that you can upload to the community webmap at https://map.diorite.xyz
+A NeoForge 1.21.1 mod for the About Oliver Minecraft Create server. This mod records where you've been and
+automatically prepares Xaero exports that you can upload to the community webmap at https://create.diorite.xyz
 
-Requires Xaero World Map. Built and tested on Xaero World Map v1.47.2, but it may work on other versions!
+This is the `neoforge-1.21.1` branch. The Fabric 26.3 version for the main server is on `main`.
+
+Requires Xaero World Map. Built against Xaero World Map v1.47.0 for NeoForge 1.21.1, but it may work on other versions!
 
 ## How to use
 
@@ -39,4 +41,4 @@ can choose to continue with the last session or clear the data to start a new se
 
 ## Building
 
-`./gradlew build` with Java 25. See `contributing.md` for development notes.
+`./gradlew build` (Gradle downloads Java 21 if needed). See `contributing.md` for development notes.

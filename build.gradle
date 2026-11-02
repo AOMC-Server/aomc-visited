@@ -1,17 +1,28 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'net.neoforged.moddev' version "${moddev_version}"
 }
 
-// Client-only mod, so a single source set: no splitEnvironmentSourceSets().
+version = project.version
+group = project.group
 
-loom {
+base {
+	archivesName = 'aomc-visited'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+	version = project.neoforge_version
+
 	runs {
 		client {
-			// macOS only lets the first thread open windows; Mojang's launcher passes this flag
-			// for 26.3, but runClient didn't, and the game died with SIGTRAP at window setup.
-			if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-				vmArg "-XstartOnFirstThread"
-			}
+			client()
+		}
+	}
+
+	mods {
+		aomc_visited {
+			sourceSet sourceSets.main
 		}
 	}
 }
@@ -29,7 +40,7 @@ configurations {
 
 def extractXaeroLib = tasks.register("extractXaeroLib", Sync) {
 	from({ zipTree(configurations.xaeroWorldMap.singleFile) }) {
-		include "META-INF/jars/xaerolib-*.jar"
+		include "META-INF/jarjar/xaerolib-*.jar"
 		eachFile { path = "xaerolib.jar" }
 	}
 	includeEmptyDirs = false
@@ -37,34 +48,26 @@ def extractXaeroLib = tasks.register("extractXaeroLib", Sync) {
 }
 
 dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-
 	// Xaero's World Map is All Rights Reserved: compile against it from Modrinth, never bundle it, and
-	// only call into it when it's installed. Its xaerolib is nested inside the jar.
-	xaeroWorldMap "maven.modrinth:xaeros-world-map:fabric-${project.minecraft_version}-${project.xaero_worldmap_version}"
+	// only call into it when it's installed. Its xaerolib is nested inside the jar (NeoForge's jar-in-jar).
+	xaeroWorldMap "maven.modrinth:xaeros-world-map:neoforge-${project.minecraft_version}-${project.xaero_worldmap_version}"
 	compileOnly files(configurations.xaeroWorldMap)
 	compileOnly files(layout.buildDirectory.file("xaero-lib/xaerolib.jar")).builtBy(extractXaeroLib)
 }
 
 processResources {
-	def version = project.version
-	inputs.property "version", version
+	def props = [version: project.version, minecraft_version: project.minecraft_version]
+	inputs.properties props
 
-	filesMatching("fabric.mod.json") {
-		expand "version": version
+	filesMatching("META-INF/neoforge.mods.toml") {
+		expand props
 	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = 21
 }
 
 java {
 	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
 }

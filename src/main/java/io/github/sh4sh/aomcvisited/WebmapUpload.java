@@ -1,6 +1,6 @@
 package io.github.sh4sh.aomcvisited;
 
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.fml.ModList;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -22,10 +22,10 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
-	private static final URI WEBMAP = URI.create("https://map.diorite.xyz/");
+	private static final URI WEBMAP = URI.create("https://create.diorite.xyz/");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
-	private static final String USER_AGENT = "AOMC Visited/" + FabricLoader.getInstance()
-			.getModContainer(AomcVisitedClient.MOD_ID).map(mod -> mod.getMetadata().getVersion().getFriendlyString())
+	private static final String USER_AGENT = "AOMC Visited/" + ModList.get()
+			.getModContainerById(AomcVisitedClient.MOD_ID).map(mod -> mod.getModInfo().getVersion().toString())
 			.orElse("unknown");
 
 	/** This session's exports, by number, for their [Upload] buttons. */
@@ -164,7 +164,7 @@ final class WebmapUpload {
 
 	private static void finish(Minecraft client, List<Dimension> dimensions, Map<Dimension, String> problems) {
 		MutableComponent report = problems.isEmpty()
-				? Chat.success("Uploaded to map.diorite.xyz and marked as uploaded.")
+				? Chat.success("Uploaded to create.diorite.xyz and marked as uploaded.")
 				: Chat.warning("The upload didn't fully succeed. Only what's listed as marked was marked as uploaded.");
 		for (Dimension dimension : dimensions) {
 			String name = VisitedChunks.shortName(dimension.key());

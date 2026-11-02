@@ -1,12 +1,16 @@
 pluginManagement {
 	repositories {
-		maven {
-			name = 'Fabric'
-			url = 'https://maven.fabricmc.net/'
-		}
-		mavenCentral()
 		gradlePluginPortal()
+		maven {
+			name = 'NeoForged'
+			url = 'https://maven.neoforged.net/releases'
+		}
 	}
+}
+
+plugins {
+	// Downloads Java 21 for the build if it isn't installed.
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
 rootProject.name = 'aomc-visited'
