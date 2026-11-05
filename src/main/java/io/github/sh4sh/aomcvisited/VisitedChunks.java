@@ -278,7 +278,7 @@ public final class VisitedChunks {
 	public synchronized int clear(ResourceKey<Level> dimension) {
 		int forgotten = 0;
 		for (String key : recordKeys(dimension.identifier().toString())) {
-			forgotten += clear(key);
+			forgotten += clearRecord(key);
 		}
 		return forgotten;
 	}
@@ -286,12 +286,12 @@ public final class VisitedChunks {
 	public synchronized int clearAll() {
 		int forgotten = 0;
 		for (String id : records.keySet().toArray(new String[0])) {
-			forgotten += clear(id);
+			forgotten += clearRecord(id);
 		}
 		return forgotten;
 	}
 
-	private int clear(String id) {
+	public synchronized int clearRecord(String id) {
 		int forgotten = 0;
 		if (exports.values().removeIf(export -> export.key().equals(id))) {
 			exportsDirty = true;
@@ -516,6 +516,29 @@ public final class VisitedChunks {
 			return dimension;
 		}
 		return dimension + (layer == FULL_CAVE_LAYER ? "/caves" : "/caves-y" + layer * 16);
+	}
+
+	public static int layerOf(String key) {
+		if (!isCaveMode(key)) {
+			return SURFACE_LAYER;
+		}
+		String mode = key.substring(key.indexOf('/') + 1);
+		return mode.equals("caves") ? FULL_CAVE_LAYER : Integer.parseInt(mode.substring("caves-y".length())) >> 4;
+	}
+
+	/** Null if no record could have that name. */
+	public static String keyOf(String name) {
+		String key = "minecraft:" + name.replaceFirst("-", "/");
+		try {
+			return recordKey(dimensionOf(key), layerOf(key)).equals(key) ? key : null;
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	public static String displayName(String key) {
+		String mode = caveModeName(key);
+		return shortName(dimensionOf(key)) + (mode == null ? "" : " (" + mode + ")");
 	}
 
 	public static String dimensionOf(String key) {
