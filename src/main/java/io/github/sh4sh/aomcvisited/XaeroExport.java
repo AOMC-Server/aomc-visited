@@ -245,14 +245,14 @@ public final class XaeroExport {
 		}
 
 		private void beginDimensionExport() {
-			// The webmap's main maps are made with cave mode off.
-			if (processor.getCurrentCaveLayer() != VisitedChunks.SURFACE_LAYER) {
-				line(red(VisitedChunks.shortName(keys.get(dimension)) + ": Xaero's map is in cave mode there, so it was skipped."
-						+ " Turn cave mode off and export again."));
-				nextDimension();
-				return;
-			}
 			String key = keys.get(dimension);
+			// Any cave mode is allowed, but the player should see which map they're about to upload.
+			int layer = processor.getCurrentCaveLayer();
+			if (layer != VisitedChunks.SURFACE_LAYER) {
+				line(Component.literal(VisitedChunks.shortName(key) + ": exported in "
+						+ (layer == Integer.MIN_VALUE ? "Full cave mode" : "Layered cave mode (from about y " + layer * 16 + ")")
+						+ ", as Xaero shows it.").withStyle(ChatFormatting.GOLD));
+			}
 			run = new Run(this, key, plan(key));
 			log("{}: {} area(s), up to {} images", VisitedChunks.shortName(key), run.areas.size(),
 					run.areas.stream().mapToInt(ExportAreas.Box::tiles).sum());
