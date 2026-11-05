@@ -285,13 +285,17 @@ final class VisitedCommands {
 			return 0;
 		}
 		Minecraft client = Minecraft.getInstance();
+		XaeroExport.Mode mode = upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT;
+		if (ResourcePacks.playerPacks(client).isEmpty()) {
+			pending = new PendingExport(only, mode);
+			return 1;
+		}
 		source.sendSystemMessage(Chat.info("Turning your resource packs off for the export. They'll come back on"
 				+ " afterwards, in the same order.")
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));
 		ResourcePacks.turnOff(client, restore -> {
-			Component error = XaeroExport.start(client, only, upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT,
-					restore);
+			Component error = XaeroExport.start(client, only, mode, restore);
 			if (error != null) {
 				Chat.send(client, error);
 				restore.run();
