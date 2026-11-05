@@ -22,7 +22,8 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
-	private static final URI WEBMAP = URI.create("https://map.diorite.xyz/");
+	static final String HOST = "map.diorite.xyz";
+	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 	private static final String USER_AGENT = "AOMC Visited/" + FabricLoader.getInstance()
 			.getModContainer(AomcVisitedClient.MOD_ID).map(mod -> mod.getMetadata().getVersion().getFriendlyString())
@@ -164,7 +165,7 @@ final class WebmapUpload {
 
 	private static void finish(Minecraft client, List<Dimension> dimensions, Map<Dimension, String> problems) {
 		MutableComponent report = problems.isEmpty()
-				? Chat.success("Uploaded to map.diorite.xyz and marked as uploaded.")
+				? Chat.success("Uploaded to " + HOST + " and marked as uploaded.")
 				: Chat.warning("The upload didn't fully succeed. Only what's listed as marked was marked as uploaded.");
 		for (Dimension dimension : dimensions) {
 			String name = VisitedChunks.shortName(dimension.key());
