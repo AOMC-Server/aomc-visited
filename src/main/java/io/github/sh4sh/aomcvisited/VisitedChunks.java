@@ -274,11 +274,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int clear(ResourceKey<Level> dimension) {
-		int forgotten = 0;
-		for (String key : recordKeys(dimension.location().toString())) {
-			forgotten += clearRecord(key);
-		}
-		return forgotten;
+		return recordKeys(dimension.location().toString()).stream().mapToInt(this::clearRecord).sum();
 	}
 
 	public synchronized int clearAll() {
@@ -363,13 +359,20 @@ public final class VisitedChunks {
 	}
 
 	public synchronized List<String> dimensions() {
-		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
-				.map(record -> dimensionOf(record.getKey())).distinct().toList();
+		return recordKeys().map(VisitedChunks::dimensionOf).distinct().toList();
 	}
 
 	public synchronized List<String> recordKeys(String dimension) {
-		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
-				.map(Map.Entry::getKey).filter(key -> dimensionOf(key).equals(dimension)).toList();
+		return recordKeys().filter(key -> dimensionOf(key).equals(dimension)).toList();
+	}
+
+	private Stream<String> recordKeys() {
+		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty()).map(Map.Entry::getKey);
+	}
+
+	public synchronized int size(String key) {
+		LongOpenHashSet chunks = records.get(key);
+		return chunks == null ? 0 : chunks.size();
 	}
 
 	public synchronized LongOpenHashSet snapshot(String key) {
@@ -378,7 +381,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int count(ResourceKey<Level> dimension) {
-		return recordKeys(dimension.location().toString()).stream().mapToInt(key -> records.get(key).size()).sum();
+		return recordKeys(dimension.location().toString()).stream().mapToInt(this::size).sum();
 	}
 
 	public synchronized Map<String, Integer> counts() {
@@ -508,20 +511,25 @@ public final class VisitedChunks {
 		}
 	}
 
+	private static final String FULL = "caves", LAYERED = "caves-y";
+
 	/** Xaero keeps a separate map per cave mode and Layered cave start; one being fresh says nothing of the others. */
 	public static String recordKey(String dimension, int layer) {
 		if (layer == SURFACE_LAYER) {
 			return dimension;
 		}
-		return dimension + (layer == FULL_CAVE_LAYER ? "/caves" : "/caves-y" + layer * 16);
+		return dimension + "/" + (layer == FULL_CAVE_LAYER ? FULL : LAYERED + layer * 16);
+	}
+
+	private static String mode(String key) {
+		int slash = key.indexOf('/');
+		return slash < 0 ? null : key.substring(slash + 1);
 	}
 
 	public static int layerOf(String key) {
-		if (!isCaveMode(key)) {
-			return SURFACE_LAYER;
-		}
-		String mode = key.substring(key.indexOf('/') + 1);
-		return mode.equals("caves") ? FULL_CAVE_LAYER : Integer.parseInt(mode.substring("caves-y".length())) >> 4;
+		String mode = mode(key);
+		return mode == null ? SURFACE_LAYER : mode.equals(FULL) ? FULL_CAVE_LAYER
+				: Integer.parseInt(mode.substring(LAYERED.length())) >> 4;
 	}
 
 	/** Null if no record could have that name. */
@@ -545,15 +553,17 @@ public final class VisitedChunks {
 	}
 
 	public static boolean isCaveMode(String key) {
-		return key.indexOf('/') >= 0;
+		return mode(key) != null;
 	}
 
 	public static String caveModeName(String key) {
-		if (!isCaveMode(key)) {
-			return null;
-		}
-		String mode = key.substring(key.indexOf('/') + 1);
-		return mode.equals("caves") ? "Full cave mode" : "Layered cave mode from about y " + mode.substring("caves-y".length());
+		String mode = mode(key);
+		return mode == null ? null : mode.equals(FULL) ? "Full cave mode"
+				: "Layered cave mode from about y " + mode.substring(LAYERED.length());
+	}
+
+	public static String displayNames(List<String> keys) {
+		return String.join(", ", keys.stream().map(VisitedChunks::displayName).toList());
 	}
 
 	/** Also a folder name, hence the dash. */
