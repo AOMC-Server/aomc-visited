@@ -124,7 +124,7 @@ public final class XaeroExport {
 		List<String> keys = new ArrayList<>();
 		MutableComponent choices = Component.empty();
 		if (record != null) {
-			if (AomcVisitedClient.VISITED.snapshot(record).isEmpty()) {
+			if (AomcVisitedClient.VISITED.size(record) == 0) {
 				return Chat.error("Nothing recorded in " + VisitedChunks.displayName(record) + ".");
 			}
 			keys.add(record);
@@ -141,11 +141,7 @@ public final class XaeroExport {
 						+ " Xaero's World Map may not be supported.");
 			}
 			for (String dimension : dimensions) {
-				Map<String, List<String>> byMap = new LinkedHashMap<>();
-				for (String key : AomcVisitedClient.VISITED.recordKeys(dimension)) {
-					byMap.computeIfAbsent(String.valueOf(WebmapUpload.webmapName(key)), k -> new ArrayList<>()).add(key);
-				}
-				byMap.forEach((map, records) -> {
+				byMap(dimension).forEach((map, records) -> {
 					if (records.size() == 1) {
 						keys.add(records.getFirst());
 					} else {
@@ -175,25 +171,33 @@ public final class XaeroExport {
 		return null;
 	}
 
+	/** The dimension's records, grouped by the webmap map they go to (records with no map share "null"). */
+	private static Map<String, List<String>> byMap(String dimension) {
+		Map<String, List<String>> byMap = new LinkedHashMap<>();
+		for (String key : AomcVisitedClient.VISITED.recordKeys(dimension)) {
+			byMap.computeIfAbsent(String.valueOf(WebmapUpload.webmapName(key)), k -> new ArrayList<>()).add(key);
+		}
+		return byMap;
+	}
+
 	static List<String> sameMap(String record) {
-		String map = String.valueOf(WebmapUpload.webmapName(record));
-		return AomcVisitedClient.VISITED.recordKeys(VisitedChunks.dimensionOf(record)).stream()
-				.filter(key -> !key.equals(record) && String.valueOf(WebmapUpload.webmapName(key)).equals(map)).toList();
+		return byMap(VisitedChunks.dimensionOf(record))
+				.getOrDefault(String.valueOf(WebmapUpload.webmapName(record)), List.of()).stream()
+				.filter(key -> !key.equals(record)).toList();
 	}
 
 	private static final int CHOICE_BUTTONS = 3;
 
 	private static Component choice(String map, List<String> records, Mode mode) {
-		List<String> bySize = records.stream().sorted(Comparator.comparingInt(
-				(String key) -> AomcVisitedClient.VISITED.snapshot(key).size()).reversed()).toList();
-		String command = (mode == Mode.UPLOAD ? "/visited upload record " : "/visited export record ");
+		List<String> bySize = records.stream()
+				.sorted(Comparator.comparingInt(AomcVisitedClient.VISITED::size).reversed()).toList();
 		String suffix = mode == Mode.NOT_FOR_WEBMAP ? " not-for-webmap" : "";
 		List<Component> buttons = new ArrayList<>();
 		for (String key : bySize.subList(0, Math.min(CHOICE_BUTTONS, bySize.size()))) {
 			String caves = VisitedChunks.caveModeName(key);
 			buttons.add(Chat.button((caves == null ? "cave mode off" : caves) + ": "
-					+ AomcVisitedClient.VISITED.snapshot(key).size() + " chunks", ChatFormatting.GREEN,
-					command + VisitedChunks.shortName(key) + suffix, (mode == Mode.UPLOAD ? "Export and upload " : "Export ")
+					+ AomcVisitedClient.VISITED.size(key) + " chunks", ChatFormatting.GREEN,
+					VisitedCommands.recordCommand(mode == Mode.UPLOAD ? "upload" : "export", key) + suffix, (mode == Mode.UPLOAD ? "Export and upload " : "Export ")
 							+ "only what was recorded in " + VisitedChunks.displayName(key)));
 		}
 		int more = bySize.size() - buttons.size();
@@ -207,6 +211,12 @@ public final class XaeroExport {
 				+ ": recorded in " + records.size() + " cave modes, which all go to the " + map + " map. Pick one"
 				+ (more > 0 && !moreButton ? " (" + more + " more: see /visited):" : ":")).withStyle(ChatFormatting.GOLD));
 		return line.append(Chat.buttons(buttons.toArray(Component[]::new)));
+	}
+
+	private static void appendButtons(MutableComponent message, List<Component> buttons) {
+		if (!buttons.isEmpty()) {
+			message.append(Chat.buttons(buttons.toArray(Component[]::new)));
+		}
 	}
 
 	private static final class Job {
@@ -348,9 +358,7 @@ public final class XaeroExport {
 				message = Chat.info("Export cleaned: map exports/" + shown + ". Uploading it to"
 						+ " " + WebmapUpload.HOST + " now. It's marked as uploaded once the webmap has processed it.");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
-				if (!clearButtons.isEmpty()) {
-					message.append(Chat.buttons(clearButtons.toArray(Component[]::new)));
-				}
+				appendButtons(message, clearButtons);
 				if (!uploads.isEmpty()) {
 					WebmapUpload.start(client, List.copyOf(uploads));
 				}
@@ -360,13 +368,9 @@ public final class XaeroExport {
 						+ (keys.size() == 1 && run != null ? ". Upload it to the " + WebmapUpload.webmapName(run.key) + " map."
 								: ". Upload each dimension's folder to its own map."));
 				buttons.addFirst(Chat.openButton("Open folder", root));
-				message.append(report).append(Chat.buttons(buttons.toArray(Component[]::new)));
-				if (!markButtons.isEmpty()) {
-					message.append(Chat.buttons(markButtons.toArray(Component[]::new)));
-				}
-				if (!clearButtons.isEmpty()) {
-					message.append(Chat.buttons(clearButtons.toArray(Component[]::new)));
-				}
+				appendButtons(message.append(report), buttons);
+				appendButtons(message, markButtons);
+				appendButtons(message, clearButtons);
 				Chat.status(client, "export done, see chat.", ChatFormatting.GREEN);
 			} else {
 				deleteIfEmpty(root);
@@ -592,7 +596,7 @@ public final class XaeroExport {
 			if (!others.isEmpty()) {
 				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED, "/visited clear others "
 						+ VisitedChunks.shortName(key), "Forget what else was recorded for the " + WebmapUpload.webmapName(key)
-						+ " map, in " + String.join(", ", others.stream().map(VisitedChunks::displayName).toList())
+						+ " map, in " + VisitedChunks.displayNames(others)
 						+ " (asks to confirm first)"));
 			}
 			String name = VisitedChunks.displayName(key) + (job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)");
