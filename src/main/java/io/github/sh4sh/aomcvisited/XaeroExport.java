@@ -63,6 +63,16 @@ public final class XaeroExport {
 		return job != null && System.currentTimeMillis() - lastProgress < STUCK_MS;
 	}
 
+	/** A stuck job never runs its whenDone, so it's dropped here, which puts the resource packs back. */
+	private static void dropStuck() {
+		if (job != null && !active()) {
+			log("dropping an export with no progress for {} minutes", STUCK_MS / 60_000);
+			reset();
+			Chat.send(Minecraft.getInstance(), Chat.warning("The export stopped making progress, so it was stopped."
+					+ " If your resource packs were turned off for it, they're being turned back on."));
+		}
+	}
+
 	static void reset() {
 		Job current = job;
 		job = null;
@@ -76,6 +86,7 @@ public final class XaeroExport {
 	}
 
 	static void tick() {
+		dropStuck();
 		Job current = job;
 		if (current != null) {
 			current.tick();
