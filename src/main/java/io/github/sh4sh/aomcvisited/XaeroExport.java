@@ -197,10 +197,15 @@ public final class XaeroExport {
 							+ "only what was recorded in " + VisitedChunks.displayName(key)));
 		}
 		int more = bySize.size() - buttons.size();
+		// /visited's buttons make webmap exports, so they'd lose not-for-webmap.
+		boolean moreButton = more > 0 && mode != Mode.NOT_FOR_WEBMAP;
+		if (moreButton) {
+			buttons.add(Chat.button(more + " more", ChatFormatting.AQUA, "/visited", "Lists every record, each with its"
+					+ " own buttons"));
+		}
 		MutableComponent line = Chat.line(Component.literal(VisitedChunks.shortName(VisitedChunks.dimensionOf(records.getFirst()))
 				+ ": recorded in " + records.size() + " cave modes, which all go to the " + map + " map. Pick one"
-				+ (more > 0 ? " (" + more + " smaller " + (more == 1 ? "one isn't" : "ones aren't") + " shown; see /visited):"
-						: ":")).withStyle(ChatFormatting.GOLD));
+				+ (more > 0 && !moreButton ? " (" + more + " more: see /visited):" : ":")).withStyle(ChatFormatting.GOLD));
 		return line.append(Chat.buttons(buttons.toArray(Component[]::new)));
 	}
 

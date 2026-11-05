@@ -96,8 +96,17 @@ final class VisitedCommands {
 		if (counts.isEmpty()) {
 			message.append(Chat.line("none yet"));
 		}
-		counts.forEach((key, count) -> message.append(Chat.line(VisitedChunks.displayName(key) + ": " + count
-				+ (VisitedChunks.isCaveMode(key) ? " (" + VisitedChunks.shortName(key) + ")" : ""))));
+		counts.forEach((key, count) -> {
+			String name = VisitedChunks.shortName(key);
+			MutableComponent line = Component.literal(VisitedChunks.displayName(key) + ": " + count + "  ")
+					.append(Chat.button("Export", ChatFormatting.GREEN, "/visited export record " + name,
+							"/visited export record " + name));
+			if (WebmapUpload.webmapName(key) != null) {
+				line.append(" ").append(Chat.button("Upload", ChatFormatting.GREEN, "/visited upload record " + name,
+						"/visited upload record " + name + " (asks to confirm first)"));
+			}
+			message.append(Chat.line(line));
+		});
 		source.sendFeedback(message);
 		return 1;
 	}
