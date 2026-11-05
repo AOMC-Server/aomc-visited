@@ -22,10 +22,10 @@ import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
 
 final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
-	private static boolean exportNextTick;
-	private static String exportOnly;
-	private static boolean exportWithPacks;
-	private static boolean exportForUpload;
+	private static PendingExport pending;
+
+	private record PendingExport(String only, XaeroExport.Mode mode) {
+	}
 
 	private VisitedCommands() {
 	}
@@ -66,10 +66,10 @@ final class VisitedCommands {
 	}
 
 	static void tick(Minecraft client) {
-		if (exportNextTick) {
-			exportNextTick = false;
-			Component error = XaeroExport.start(client, exportOnly, exportForUpload ? XaeroExport.Mode.UPLOAD
-					: exportWithPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT, null);
+		if (pending != null) {
+			PendingExport export = pending;
+			pending = null;
+			Component error = XaeroExport.start(client, export.only(), export.mode(), null);
 			if (error != null && client.player != null) {
 				client.player.sendSystemMessage(error);
 			}
@@ -226,10 +226,7 @@ final class VisitedCommands {
 							"Export and upload " + what))));
 			return 1;
 		}
-		exportNextTick = true;
-		exportOnly = only;
-		exportWithPacks = false;
-		exportForUpload = true;
+		pending = new PendingExport(only, XaeroExport.Mode.UPLOAD);
 		return 1;
 	}
 
@@ -282,10 +279,7 @@ final class VisitedCommands {
 											+ " its colours may be off"))));
 			return 0;
 		}
-		exportNextTick = true;
-		exportOnly = only;
-		exportWithPacks = withPacks;
-		exportForUpload = false;
+		pending = new PendingExport(only, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
 		return 1;
 	}
 
