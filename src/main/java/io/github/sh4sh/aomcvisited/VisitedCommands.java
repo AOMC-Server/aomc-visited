@@ -92,11 +92,11 @@ final class VisitedCommands {
 	}
 
 	private static int clear(FabricClientCommandSource source, boolean confirm) {
-		if (VISITED.server() == null || source.getClient().level == null) {
+		if (VISITED.server() == null || Minecraft.getInstance().level == null) {
 			source.sendFeedback(Chat.error("Not connected to a world."));
 			return 0;
 		}
-		ResourceKey<Level> dimension = source.getClient().level.dimension();
+		ResourceKey<Level> dimension = Minecraft.getInstance().level.dimension();
 		String id = dimension.identifier().toString();
 		if (!confirm) {
 			source.sendFeedback(Chat.warning("This will forget the " + VISITED.count(dimension) + " chunks"
@@ -205,7 +205,7 @@ final class VisitedCommands {
 			source.sendFeedback(Chat.error("An upload is already running."));
 			return 0;
 		}
-		List<String> packs = ResourcePacks.playerPacks(source.getClient());
+		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited upload" + (only == null ? "" : " " + VisitedChunks.shortName(only));
 		String what = only == null ? "everything recorded" : VisitedChunks.shortName(only);
 		if (!packs.isEmpty()) {
@@ -214,11 +214,11 @@ final class VisitedCommands {
 					.append(Chat.line(String.join(", ", packs)))
 					.append(Chat.buttons(Chat.button("Turn packs off and upload", ChatFormatting.GREEN,
 							command + " without-packs", "Turns your resource packs off, exports " + what + ", turns them"
-									+ " back on, then uploads to map.diorite.xyz and marks it as uploaded"))));
+									+ " back on, then uploads to " + WebmapUpload.HOST + " and marks it as uploaded"))));
 			return 0;
 		}
 		if (!confirmed) {
-			source.sendFeedback(Chat.info("Export and upload " + what + " to map.diorite.xyz? It's marked as"
+			source.sendFeedback(Chat.info("Export and upload " + what + " to " + WebmapUpload.HOST + "? It's marked as"
 					+ " uploaded once the webmap has processed it.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, command + " confirm",
 							"Export and upload " + what))));
@@ -242,7 +242,7 @@ final class VisitedCommands {
 		}
 		String what = export.images().size() + " images of " + VisitedChunks.shortName(export.key());
 		if (!confirmed) {
-			source.sendFeedback(Chat.info("Upload " + what + " to map.diorite.xyz? They're marked as uploaded once"
+			source.sendFeedback(Chat.info("Upload " + what + " to " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
 							+ " confirm", "Upload " + what))));
@@ -253,7 +253,7 @@ final class VisitedCommands {
 					+ " to export and upload again."));
 			return 0;
 		}
-		WebmapUpload.start(source.getClient(), List.of(export));
+		WebmapUpload.start(Minecraft.getInstance(), List.of(export));
 		return 1;
 	}
 
@@ -262,7 +262,7 @@ final class VisitedCommands {
 			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
-		List<String> packs = ResourcePacks.playerPacks(source.getClient());
+		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited export" + (only == null ? "" : " " + VisitedChunks.shortName(only));
 		if (!packs.isEmpty() && !withPacks) {
 			source.sendFeedback(Chat.warning("Resource packs change the colours of the exported map. These are on:")
@@ -294,7 +294,7 @@ final class VisitedCommands {
 			source.sendFeedback(Chat.error("An upload is already running."));
 			return 0;
 		}
-		Minecraft client = source.getClient();
+		Minecraft client = Minecraft.getInstance();
 		source.sendFeedback(Chat.info("Turning your resource packs off for the export. They'll come back on"
 				+ " afterwards, in the same order.")
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"

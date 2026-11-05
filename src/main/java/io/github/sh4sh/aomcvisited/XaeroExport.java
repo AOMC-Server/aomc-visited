@@ -265,7 +265,7 @@ public final class XaeroExport {
 			MutableComponent message;
 			if (anyImages && mode == Mode.UPLOAD) {
 				message = Chat.info("Export cleaned: map exports/" + root.getFileName() + ". Uploading it to"
-						+ " map.diorite.xyz now. It's marked as uploaded once the webmap has processed it.");
+						+ " " + WebmapUpload.HOST + " now. It's marked as uploaded once the webmap has processed it.");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
 				if (!uploads.isEmpty()) {
 					WebmapUpload.start(client, List.copyOf(uploads));
@@ -489,8 +489,8 @@ public final class XaeroExport {
 				if (job.mode == Mode.EXPORT) {
 					WebmapUpload.remember(upload);
 					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
-							"/visited upload " + number, "Uploads " + where() + " to map.diorite.xyz, then marks it as"
-									+ " uploaded (asks to confirm first)"));
+							"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
+									+ ", then marks it as uploaded (asks to confirm first)"));
 				}
 				job.markButtons.add(Chat.button("Mark " + VisitedChunks.shortName(key) + " as uploaded",
 						ChatFormatting.DARK_GREEN, "/visited mark-uploaded " + number, "Click once " + where()
