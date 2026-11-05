@@ -7,6 +7,7 @@
 	"authors": [
 		"sunngoose"
 	],
+	"icon": "assets/aomc_visited/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
