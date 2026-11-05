@@ -51,6 +51,8 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		});
 	}
 
+	private static int shownLayer = VisitedChunks.SURFACE_LAYER;
+
 	static void refreshAll() {
 		MapProcessor processor = processor();
 		if (processor != null && processor.getMapWorld() != null) {
@@ -62,12 +64,22 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 	static void refreshChanged() {
 		Map<String, LongOpenHashSet> changed = AomcVisitedClient.VISITED.takeChangedRegions();
 		MapProcessor processor = processor();
-		if (changed.isEmpty() || processor == null || processor.getMapWorld() == null) {
+		if (processor == null || processor.getMapWorld() == null) {
+			return;
+		}
+		// Xaero caches highlight hashes per region, not per cave mode.
+		int layer = processor.getCurrentCaveLayer();
+		if (layer != shownLayer) {
+			shownLayer = layer;
+			processor.getMapWorld().clearAllCachedHighlightHashes();
+			return;
+		}
+		if (changed.isEmpty()) {
 			return;
 		}
 		changed.forEach((key, regions) -> {
 			MapDimension mapDimension = processor.getMapWorld()
-					.getDimension(ResourceKey.create(Registries.DIMENSION, Identifier.parse(key)));
+					.getDimension(ResourceKey.create(Registries.DIMENSION, Identifier.parse(VisitedChunks.dimensionOf(key))));
 			if (mapDimension != null) {
 				regions.forEach(region -> mapDimension.getHighlightHandler()
 						.clearCachedHash(ChunkPos.getX(region), ChunkPos.getZ(region)));
@@ -85,7 +97,10 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 	}
 
 	private static String key(ResourceKey<Level> dimension) {
-		return dimension.identifier().toString();
+		MapProcessor processor = processor();
+		String id = dimension.identifier().toString();
+		return VisitedChunks.recordKey(id, processor == null || VisitedChunks.SURFACE_ONLY.contains(id)
+				? VisitedChunks.SURFACE_LAYER : processor.getCurrentCaveLayer());
 	}
 
 	private static boolean recorded(ResourceKey<Level> dimension, int x, int z) {
