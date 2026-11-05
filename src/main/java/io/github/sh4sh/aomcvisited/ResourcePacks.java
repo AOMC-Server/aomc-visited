@@ -35,13 +35,13 @@ final class ResourcePacks {
 		long reloading = System.currentTimeMillis();
 		client.reloadResourcePacks().whenComplete((ignored, failure) -> client.execute(() -> {
 			if (failure != null) {
-				LOGGER.error("[AOMC Visited] export: reloading without packs failed", failure);
+				LOGGER.error("[AOMC Webmapper] export: reloading without packs failed", failure);
 				Chat.send(client, Chat.error("Minecraft couldn't reload without your resource packs, so nothing was"
 						+ " exported."));
 				restoreOnce.run();
 				return;
 			}
-			LOGGER.info("[AOMC Visited] export: packs off, reload took {} ms", System.currentTimeMillis() - reloading);
+			LOGGER.info("[AOMC Webmapper] export: packs off, reload took {} ms", System.currentTimeMillis() - reloading);
 			whileOff.accept(restoreOnce);
 		}));
 	}
@@ -52,12 +52,12 @@ final class ResourcePacks {
 		long reloading = System.currentTimeMillis();
 		client.reloadResourcePacks().whenComplete((ignored, failure) -> client.execute(() -> {
 			if (failure != null) {
-				LOGGER.error("[AOMC Visited] export: reloading with packs back on failed", failure);
+				LOGGER.error("[AOMC Webmapper] export: reloading with packs back on failed", failure);
 				Chat.send(client, Chat.warning("Your resource packs are back on, but Minecraft couldn't reload them:"
 						+ " please check Options > Resource Packs."));
 				return;
 			}
-			LOGGER.info("[AOMC Visited] export: packs back on, reload took {} ms", System.currentTimeMillis() - reloading);
+			LOGGER.info("[AOMC Webmapper] export: packs back on, reload took {} ms", System.currentTimeMillis() - reloading);
 			boolean sameOrder = List.copyOf(repository.getSelectedIds()).equals(original);
 			if (!sameOrder) {
 				LOGGER.warn("Resource packs restored in a different order: {} instead of {}",

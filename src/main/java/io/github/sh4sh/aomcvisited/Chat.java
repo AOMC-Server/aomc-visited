@@ -12,7 +12,7 @@ import net.minecraft.util.Mth;
 import java.nio.file.Path;
 
 public final class Chat {
-	private static final String NAME = "AOMC Visited";
+	private static final String NAME = "AOMC Webmapper";
 	private static final String BUTTON_GAP = "   ";
 
 	private Chat() {

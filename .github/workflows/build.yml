@@ -49,7 +49,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aomc-visited-fabric-26.3
+          name: aomc-webmapper-fabric-26.3
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
@@ -61,6 +61,6 @@ jobs:
         run: |
           version=$(grep '^version=' gradle.properties | cut -d= -f2)
           if ! gh release view "v$version" >/dev/null 2>&1; then
-            gh release create "v$version" "build/libs/aomc-visited-$version.jar" \
+            gh release create "v$version" "build/libs/aomc-webmapper-$version.jar" \
               --target "$GITHUB_SHA" --title "$version" --generate-notes
           fi

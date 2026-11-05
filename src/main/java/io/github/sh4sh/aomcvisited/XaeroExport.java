@@ -113,7 +113,7 @@ public final class XaeroExport {
 	 */
 	static Component start(Minecraft client, ExportTarget target, Mode mode, Runnable whenDone) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
-			return Chat.error("AOMC Visited is off. Turn it on with /visited on.");
+			return Chat.error("AOMC Webmapper is off. Turn it on with /visited on.");
 		}
 		if (active()) {
 			return Chat.error("An export is already running.");
@@ -513,7 +513,7 @@ public final class XaeroExport {
 					String dimension = job.keys.size() == 1 ? VisitedChunks.shortName(key) + "-" : "";
 					String server = VISITED.server();
 					String serverFolder = server == null ? "unknown" : server.substring(server.indexOf('/') + 1);
-					String exportFolder = "aomc-visited-" + dimension + LocalDateTime.now().format(FOLDER_TIME);
+					String exportFolder = "aomc-webmapper-" + dimension + LocalDateTime.now().format(FOLDER_TIME);
 					job.root = mapExports.resolve(serverFolder).resolve(exportFolder);
 				}
 				if (folder == null) {
@@ -632,7 +632,7 @@ public final class XaeroExport {
 	}
 
 	private static void log(String message, Object... args) {
-		AomcVisitedClient.LOGGER.info("[AOMC Visited] export: " + message, args);
+		AomcVisitedClient.LOGGER.info("[AOMC Webmapper] export: " + message, args);
 	}
 
 	private static List<ExportAreas.Box> plan(String key) {

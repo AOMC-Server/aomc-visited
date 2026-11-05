@@ -1,4 +1,4 @@
-# AOMC Visited
+# AOMC Webmapper
 
 A Fabric mod for the About Oliver Minecraft server. This mod records where you've been and 
 automatically prepares Xaero exports that you can upload to the community webmap at https://map.diorite.xyz
@@ -36,6 +36,8 @@ can choose to continue with the last session or clear the data to start a new se
 | `/visited overlay on\|off` | Show or hide the green overlay on Xaero's map |
 | `/visited clear` | Forget what's recorded in your current dimension (asks to confirm) |
 | `/visited clear all` | Forget everything recorded on this server (asks to confirm) |
+
+`/webmapper` works the same as `/visited`, e.g. `/webmapper upload`.
 
 ## Building
 
