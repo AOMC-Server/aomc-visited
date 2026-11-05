@@ -214,11 +214,11 @@ final class VisitedCommands {
 					.append(Chat.line(String.join(", ", packs)))
 					.append(Chat.buttons(Chat.button("Turn packs off and upload", ChatFormatting.GREEN,
 							command + " without-packs", "Turns your resource packs off, exports " + what + ", turns them"
-									+ " back on, then uploads to create.diorite.xyz and marks it as uploaded"))));
+									+ " back on, then uploads to " + WebmapUpload.HOST + " and marks it as uploaded"))));
 			return 0;
 		}
 		if (!confirmed) {
-			source.sendSystemMessage(Chat.info("Export and upload " + what + " to create.diorite.xyz? It's marked as"
+			source.sendSystemMessage(Chat.info("Export and upload " + what + " to " + WebmapUpload.HOST + "? It's marked as"
 					+ " uploaded once the webmap has processed it.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, command + " confirm",
 							"Export and upload " + what))));
@@ -242,7 +242,7 @@ final class VisitedCommands {
 		}
 		String what = export.images().size() + " images of " + VisitedChunks.shortName(export.key());
 		if (!confirmed) {
-			source.sendSystemMessage(Chat.info("Upload " + what + " to create.diorite.xyz? They're marked as uploaded once"
+			source.sendSystemMessage(Chat.info("Upload " + what + " to " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
 							+ " confirm", "Upload " + what))));
