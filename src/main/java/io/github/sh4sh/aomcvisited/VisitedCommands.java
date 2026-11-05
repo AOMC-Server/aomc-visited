@@ -2,6 +2,10 @@ package io.github.sh4sh.aomcvisited;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
@@ -22,7 +26,7 @@ final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
 	private static PendingExport pending;
 
-	private record PendingExport(String only, XaeroExport.Mode mode) {
+	private record PendingExport(String only, String record, XaeroExport.Mode mode) {
 	}
 
 	private VisitedCommands() {
@@ -35,17 +39,23 @@ final class VisitedCommands {
 					.then(exportCommand(Commands.literal("export"), null)
 							.then(exportCommand(Commands.literal("overworld"), "minecraft:overworld"))
 							.then(exportCommand(Commands.literal("the_nether"), "minecraft:the_nether"))
-							.then(exportCommand(Commands.literal("the_end"), "minecraft:the_end")))
+							.then(exportCommand(Commands.literal("the_end"), "minecraft:the_end"))
+							.then(Commands.literal("record").then(exportCommand(recordArgument(), RECORD))))
 					.then(Commands.literal("clear")
 							.executes(context -> clear(context.getSource(), false))
 							.then(Commands.literal("confirm").executes(context -> clear(context.getSource(), true)))
 							.then(Commands.literal("all")
 									.executes(context -> clearAll(context.getSource(), false))
-									.then(Commands.literal("confirm").executes(context -> clearAll(context.getSource(), true)))))
+									.then(Commands.literal("confirm").executes(context -> clearAll(context.getSource(), true))))
+							.then(Commands.literal("others").then(recordArgument()
+									.executes(context -> clearOthers(context.getSource(), record(context), false))
+									.then(Commands.literal("confirm").executes(context ->
+											clearOthers(context.getSource(), record(context), true))))))
 					.then(uploadCommand(Commands.literal("upload"), null)
 							.then(uploadCommand(Commands.literal("overworld"), "minecraft:overworld"))
 							.then(uploadCommand(Commands.literal("the_nether"), "minecraft:the_nether"))
 							.then(uploadCommand(Commands.literal("the_end"), "minecraft:the_end"))
+							.then(Commands.literal("record").then(uploadCommand(recordArgument(), RECORD)))
 							.then(Commands.argument("export", IntegerArgumentType.integer(1))
 									.executes(context -> uploadExport(context.getSource(),
 											IntegerArgumentType.getInteger(context, "export"), false))
@@ -67,7 +77,7 @@ final class VisitedCommands {
 		if (pending != null) {
 			PendingExport export = pending;
 			pending = null;
-			Component error = XaeroExport.start(client, export.only(), export.mode(), null);
+			Component error = XaeroExport.start(client, export.only(), export.record(), export.mode(), null);
 			if (error != null) {
 				Chat.send(client, error);
 			}
@@ -86,7 +96,8 @@ final class VisitedCommands {
 		if (counts.isEmpty()) {
 			message.append(Chat.line("none yet"));
 		}
-		counts.forEach((key, count) -> message.append(Chat.line(VisitedChunks.shortName(key) + ": " + count)));
+		counts.forEach((key, count) -> message.append(Chat.line(VisitedChunks.displayName(key) + ": " + count
+				+ (VisitedChunks.isCaveMode(key) ? " (" + VisitedChunks.shortName(key) + ")" : ""))));
 		source.sendSystemMessage(message);
 		return 1;
 	}
@@ -109,6 +120,31 @@ final class VisitedCommands {
 		refreshOverlay();
 		source.sendSystemMessage(Chat.success("Forgot " + forgotten + " chunks recorded in " + id + ".")
 				.append(Chat.line("Zoomed-out world map views may show the old tint until you zoom in on them once.")));
+		return 1;
+	}
+
+	private static int clearOthers(CommandSourceStack source, String record, boolean confirm) {
+		if (VISITED.server() == null) {
+			source.sendSystemMessage(Chat.error("Not connected to a world."));
+			return 0;
+		}
+		List<String> others = XaeroExport.sameMap(record);
+		String map = WebmapUpload.webmapName(record);
+		if (others.isEmpty()) {
+			source.sendSystemMessage(Chat.info("Nothing else recorded goes to the " + map + " map."));
+			return 1;
+		}
+		String names = String.join(", ", others.stream().map(VisitedChunks::displayName).toList());
+		if (!confirm) {
+			int total = others.stream().mapToInt(key -> VISITED.snapshot(key).size()).sum();
+			source.sendSystemMessage(Chat.warning("This will forget the " + total + " chunks recorded in " + names + ".")
+					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear others "
+							+ VisitedChunks.shortName(record) + " confirm", "Forget " + names))));
+			return 1;
+		}
+		int forgotten = others.stream().mapToInt(VISITED::clearRecord).sum();
+		refreshOverlay();
+		source.sendSystemMessage(Chat.success("Forgot " + forgotten + " chunks recorded in " + names + "."));
 		return 1;
 	}
 
@@ -169,24 +205,59 @@ final class VisitedCommands {
 		return 1;
 	}
 
+	/** Marks commands under {@code record <name>}, whose record comes from the argument. */
+	private static final String RECORD = "record";
+
+	private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> recordArgument() {
+		return Commands.argument("name", StringArgumentType.word());
+	}
+
+	private static String record(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+		String name = StringArgumentType.getString(context, "name");
+		String key = VisitedChunks.keyOf(name);
+		if (key == null) {
+			throw new SimpleCommandExceptionType(Component.literal("No record called " + name + "; see /visited")).create();
+		}
+		return key;
+	}
+
+	private static String only(CommandContext<CommandSourceStack> context, String only) {
+		return RECORD.equals(only) ? null : only;
+	}
+
+	private static String record(CommandContext<CommandSourceStack> context, String only) throws CommandSyntaxException {
+		return RECORD.equals(only) ? record(context) : null;
+	}
+
 	private static <S extends com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, S>> S exportCommand(
 			S command, String only) {
-		return command.executes(context -> requestExport(context.getSource(), only, false))
-				.then(Commands.literal("not-for-webmap").executes(context -> requestExport(context.getSource(), only, true)))
-				.then(Commands.literal("without-packs")
-						.executes(context -> exportWithoutPacks(context.getSource(), only, false)));
+		return command.executes(context -> requestExport(context.getSource(), only(context, only), record(context, only), false))
+				.then(Commands.literal("not-for-webmap").executes(context ->
+						requestExport(context.getSource(), only(context, only), record(context, only), true)))
+				.then(Commands.literal("without-packs").executes(context ->
+						exportWithoutPacks(context.getSource(), only(context, only), record(context, only), false)));
 	}
 
 	private static <S extends com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, S>> S uploadCommand(
 			S command, String only) {
-		return command.executes(context -> requestUpload(context.getSource(), only, false))
-				.then(Commands.literal("confirm").executes(context -> requestUpload(context.getSource(), only, true)))
-				.then(Commands.literal("without-packs")
-						.executes(context -> exportWithoutPacks(context.getSource(), only, true)));
+		return command.executes(context -> requestUpload(context.getSource(), only(context, only), record(context, only), false))
+				.then(Commands.literal("confirm").executes(context ->
+						requestUpload(context.getSource(), only(context, only), record(context, only), true)))
+				.then(Commands.literal("without-packs").executes(context ->
+						exportWithoutPacks(context.getSource(), only(context, only), record(context, only), true)));
+	}
+
+	private static String target(String only, String record) {
+		return record != null ? " record " + VisitedChunks.shortName(record) : only != null ? " " + VisitedChunks.shortName(only) : "";
+	}
+
+	private static String what(String only, String record) {
+		return record != null ? VisitedChunks.displayName(record) : only != null ? VisitedChunks.shortName(only)
+				: "everything recorded";
 	}
 
 	/** {@code /visited upload [<dimension>]}: exports, then uploads to the webmap and marks as uploaded. */
-	private static int requestUpload(CommandSourceStack source, String only, boolean confirmed) {
+	private static int requestUpload(CommandSourceStack source, String only, String record, boolean confirmed) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
@@ -201,8 +272,8 @@ final class VisitedCommands {
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited upload" + (only == null ? "" : " " + VisitedChunks.shortName(only));
-		String what = only == null ? "everything recorded" : VisitedChunks.shortName(only);
+		String command = "/visited upload" + target(only, record);
+		String what = what(only, record);
 		if (!packs.isEmpty()) {
 			source.sendSystemMessage(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
 					+ " an upload. These are on:")
@@ -219,7 +290,7 @@ final class VisitedCommands {
 							"Export and upload " + what))));
 			return 1;
 		}
-		pending = new PendingExport(only, XaeroExport.Mode.UPLOAD);
+		pending = new PendingExport(only, record, XaeroExport.Mode.UPLOAD);
 		return 1;
 	}
 
@@ -235,9 +306,9 @@ final class VisitedCommands {
 			source.sendSystemMessage(Chat.error("An upload is already running."));
 			return 0;
 		}
-		String what = export.images().size() + " images of " + VisitedChunks.shortName(export.key());
+		String what = export.images().size() + " images to the " + export.map() + " map";
 		if (!confirmed) {
-			source.sendSystemMessage(Chat.info("Upload " + what + " to " + WebmapUpload.HOST + "? They're marked as uploaded once"
+			source.sendSystemMessage(Chat.info("Upload " + what + " on " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
 							+ " confirm", "Upload " + what))));
@@ -252,13 +323,13 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static int requestExport(CommandSourceStack source, String only, boolean withPacks) {
+	private static int requestExport(CommandSourceStack source, String only, String record, boolean withPacks) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited export" + (only == null ? "" : " " + VisitedChunks.shortName(only));
+		String command = "/visited export" + target(only, record);
 		if (!packs.isEmpty() && !withPacks) {
 			source.sendSystemMessage(Chat.warning("Resource packs change the colours of the exported map. These are on:")
 					.append(Chat.line(String.join(", ", packs)))
@@ -272,11 +343,11 @@ final class VisitedCommands {
 											+ " its colours may be off"))));
 			return 0;
 		}
-		pending = new PendingExport(only, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
+		pending = new PendingExport(only, record, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
 		return 1;
 	}
 
-	private static int exportWithoutPacks(CommandSourceStack source, String only, boolean upload) {
+	private static int exportWithoutPacks(CommandSourceStack source, String only, String record, boolean upload) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
@@ -292,7 +363,7 @@ final class VisitedCommands {
 		Minecraft client = Minecraft.getInstance();
 		XaeroExport.Mode mode = upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT;
 		if (ResourcePacks.playerPacks(client).isEmpty()) {
-			pending = new PendingExport(only, mode);
+			pending = new PendingExport(only, record, mode);
 			return 1;
 		}
 		source.sendSystemMessage(Chat.info("Turning your resource packs off for the export. They'll come back on"
@@ -300,7 +371,7 @@ final class VisitedCommands {
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));
 		ResourcePacks.turnOff(client, restore -> {
-			Component error = XaeroExport.start(client, only, mode, restore);
+			Component error = XaeroExport.start(client, only, record, mode, restore);
 			if (error != null) {
 				Chat.send(client, error);
 				restore.run();

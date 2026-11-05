@@ -4,7 +4,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.sh4sh.aomcvisited.AomcVisitedClient;
-import io.github.sh4sh.aomcvisited.VisitedChunks;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -49,8 +48,6 @@ public abstract class XaeroMapWriterMixin {
 		// No tile there yet means Xaero took a fresh one from its pool: areas the map didn't have.
 		boolean differs = aomcVisited$differs || tileChunk.getTile(x, z) == null;
 		original.call(tileChunk, x, z, tile, cache, processor);
-		if (writingLayer == VisitedChunks.SURFACE_LAYER) {
-			AomcVisitedClient.VISITED.mapped(level.dimension(), tile.getChunkX(), tile.getChunkZ(), differs);
-		}
+		AomcVisitedClient.VISITED.mapped(level.dimension(), writingLayer, tile.getChunkX(), tile.getChunkZ(), differs);
 	}
 }

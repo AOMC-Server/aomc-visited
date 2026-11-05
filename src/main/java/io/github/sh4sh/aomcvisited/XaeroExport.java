@@ -29,7 +29,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -56,6 +58,13 @@ public final class XaeroExport {
 	private static volatile boolean taskEnded;
 
 	private XaeroExport() {
+	}
+
+	/** Xaero exports the cave mode it's showing; ours exports the one the record was made in. */
+	public static int layer() {
+		Job current = job;
+		return current == null || current.dimension >= current.keys.size() ? VisitedChunks.SURFACE_LAYER
+				: VisitedChunks.layerOf(current.keys.get(current.dimension));
 	}
 
 	/** If Xaero's exporter throws it never reports back, so a stuck job stops counting. */
@@ -96,7 +105,11 @@ public final class XaeroExport {
 	/** {@code NOT_FOR_WEBMAP} exports have resource packs on, so they're never offered for upload. */
 	enum Mode { EXPORT, NOT_FOR_WEBMAP, UPLOAD }
 
-	static Component start(Minecraft client, String only, Mode mode, Runnable whenDone) {
+	/**
+	 * Exports {@code record} alone, or else every dimension's records ({@code only}'s, if given). Records that would
+	 * go to the same webmap map are left out, with a button each, since uploading both would mix cave modes.
+	 */
+	static Component start(Minecraft client, String only, String record, Mode mode, Runnable whenDone) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
 			return Chat.error("AOMC Visited is off. Turn it on with /visited on.");
 		}
@@ -108,21 +121,47 @@ public final class XaeroExport {
 		if (processor == null || !processor.isMapWorldUsable() || processor.getMapWorld() == null) {
 			return Chat.error("Xaero's World Map isn't ready yet. Open the world map once, then try again.");
 		}
-		List<String> keys = AomcVisitedClient.VISITED.dimensions();
-		if (only != null) {
-			if (!keys.contains(only)) {
-				return Chat.error("Nothing recorded in " + VisitedChunks.shortName(only) + " yet.");
+		List<String> keys = new ArrayList<>();
+		MutableComponent choices = Component.empty();
+		if (record != null) {
+			if (AomcVisitedClient.VISITED.snapshot(record).isEmpty()) {
+				return Chat.error("Nothing recorded in " + VisitedChunks.displayName(record) + ".");
 			}
-			keys = List.of(only);
+			keys.add(record);
+		} else {
+			List<String> dimensions = AomcVisitedClient.VISITED.dimensions();
+			if (only != null) {
+				if (!dimensions.contains(only)) {
+					return Chat.error("Nothing recorded in " + VisitedChunks.shortName(only) + " yet.");
+				}
+				dimensions = List.of(only);
+			}
+			if (dimensions.isEmpty()) {
+				return Chat.error("Nothing recorded yet. If Xaero has been mapping and this stays empty, this version of"
+						+ " Xaero's World Map may not be supported.");
+			}
+			for (String dimension : dimensions) {
+				Map<String, List<String>> byMap = new LinkedHashMap<>();
+				for (String key : AomcVisitedClient.VISITED.recordKeys(dimension)) {
+					byMap.computeIfAbsent(String.valueOf(WebmapUpload.webmapName(key)), k -> new ArrayList<>()).add(key);
+				}
+				byMap.forEach((map, records) -> {
+					if (records.size() == 1) {
+						keys.add(records.getFirst());
+					} else {
+						choices.append(choice(map, records, mode));
+					}
+				});
+			}
 		}
 		if (keys.isEmpty()) {
-			return Chat.error("Nothing recorded yet. If Xaero has been mapping and this stays empty, this version of"
-					+ " Xaero's World Map may not be supported.");
+			return Chat.warning("Nothing exported: pick which cave mode to export.").append(choices);
 		}
-		List<String> names = keys.stream().map(VisitedChunks::shortName).toList();
+		List<String> names = keys.stream().map(VisitedChunks::displayName).toList();
 		int tiles = keys.stream().flatMap(key -> plan(key).stream()).mapToInt(ExportAreas.Box::tiles).sum();
 		ResourceKey<Level> showing = processor.getMapWorld().getCurrentDimensionId();
-		boolean switches = keys.size() > 1 || showing == null || !keys.getFirst().equals(showing.location().toString());
+		boolean switches = keys.stream().map(VisitedChunks::dimensionOf).distinct().count() > 1 || showing == null
+				|| !VisitedChunks.dimensionOf(keys.getFirst()).equals(showing.location().toString());
 		Chat.send(client, Chat.info("Exporting " + String.join(", ", names) + ". Progress shows above your hotbar."
 				+ (switches ? " Xaero's map switches dimension while it works, and the" : " The")
 				+ (tiles > LARGE_EXPORT_TILES
@@ -130,9 +169,39 @@ public final class XaeroExport {
 						: " game may freeze for a few seconds.")));
 		log("{}, up to {} images", String.join(", ", names), tiles);
 		job = new Job(client, processor, keys, mode, whenDone);
+		job.report.append(choices);
 		lastProgress = System.currentTimeMillis();
 		job.startDimension();
 		return null;
+	}
+
+	static List<String> sameMap(String record) {
+		String map = String.valueOf(WebmapUpload.webmapName(record));
+		return AomcVisitedClient.VISITED.recordKeys(VisitedChunks.dimensionOf(record)).stream()
+				.filter(key -> !key.equals(record) && String.valueOf(WebmapUpload.webmapName(key)).equals(map)).toList();
+	}
+
+	private static final int CHOICE_BUTTONS = 3;
+
+	private static Component choice(String map, List<String> records, Mode mode) {
+		List<String> bySize = records.stream().sorted(Comparator.comparingInt(
+				(String key) -> AomcVisitedClient.VISITED.snapshot(key).size()).reversed()).toList();
+		String command = (mode == Mode.UPLOAD ? "/visited upload record " : "/visited export record ");
+		String suffix = mode == Mode.NOT_FOR_WEBMAP ? " not-for-webmap" : "";
+		List<Component> buttons = new ArrayList<>();
+		for (String key : bySize.subList(0, Math.min(CHOICE_BUTTONS, bySize.size()))) {
+			String caves = VisitedChunks.caveModeName(key);
+			buttons.add(Chat.button((caves == null ? "cave mode off" : caves) + ": "
+					+ AomcVisitedClient.VISITED.snapshot(key).size() + " chunks", ChatFormatting.GREEN,
+					command + VisitedChunks.shortName(key) + suffix, (mode == Mode.UPLOAD ? "Export and upload " : "Export ")
+							+ "only what was recorded in " + VisitedChunks.displayName(key)));
+		}
+		int more = bySize.size() - buttons.size();
+		MutableComponent line = Chat.line(Component.literal(VisitedChunks.shortName(VisitedChunks.dimensionOf(records.getFirst()))
+				+ ": recorded in " + records.size() + " cave modes, which all go to the " + map + " map. Pick one"
+				+ (more > 0 ? " (" + more + " smaller " + (more == 1 ? "one isn't" : "ones aren't") + " shown; see /visited):"
+						: ":")).withStyle(ChatFormatting.GOLD));
+		return line.append(Chat.buttons(buttons.toArray(Component[]::new)));
 	}
 
 	private static final class Job {
@@ -149,6 +218,7 @@ public final class XaeroExport {
 		private final long started = System.currentTimeMillis();
 		private final List<Component> buttons = new ArrayList<>();
 		private final List<Component> markButtons = new ArrayList<>();
+		private final List<Component> clearButtons = new ArrayList<>();
 		private final List<WebmapUpload.Dimension> uploads = new ArrayList<>();
 		private int ticks;
 		private int dimension;
@@ -183,7 +253,8 @@ public final class XaeroExport {
 				finish();
 				return;
 			}
-			target = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(keys.get(dimension)));
+			target = ResourceKey.create(Registries.DIMENSION,
+					ResourceLocation.parse(VisitedChunks.dimensionOf(keys.get(dimension))));
 			processor.getMapWorld().setCustomDimensionId(target);
 			processor.checkForWorldUpdate();
 			stage(Stage.SWITCHING);
@@ -203,12 +274,12 @@ public final class XaeroExport {
 					MapWorld world = processor.getMapWorld();
 					if (!processor.isWaitingForWorldUpdate() && processor.isMapWorldUsable() && world != null
 							&& target.equals(world.getCurrentDimensionId())) {
-						log("{}: Xaero's map switched after {} ms", VisitedChunks.shortName(keys.get(dimension)), inStage());
+						log("{}: Xaero's map switched after {} ms", VisitedChunks.displayName(keys.get(dimension)), inStage());
 						stage(Stage.SETTLING);
 					} else if (inStage() > SWITCH_TIMEOUT_MS) {
-						log("{}: Xaero's map didn't switch after {} ms, skipping", VisitedChunks.shortName(keys.get(dimension)),
+						log("{}: Xaero's map didn't switch after {} ms, skipping", VisitedChunks.displayName(keys.get(dimension)),
 								inStage());
-						line(red(VisitedChunks.shortName(keys.get(dimension)) + ": Xaero didn't switch its map to it in time,"
+						line(red(VisitedChunks.displayName(keys.get(dimension)) + ": Xaero didn't switch its map to it in time,"
 								+ " so it was skipped. Try again."));
 						nextDimension();
 					}
@@ -235,7 +306,7 @@ public final class XaeroExport {
 		}
 
 		private void showProgress() {
-			String name = VisitedChunks.shortName(keys.get(dimension));
+			String name = VisitedChunks.displayName(keys.get(dimension));
 			String of = keys.size() > 1 ? " (" + (dimension + 1) + " of " + keys.size() + ")" : "";
 			String what = stage == Stage.SWITCHING || stage == Stage.SETTLING || run == null
 					? "switching Xaero's map to " + name + of
@@ -245,13 +316,6 @@ public final class XaeroExport {
 		}
 
 		private void beginDimensionExport() {
-			// The webmap's main maps are made with cave mode off.
-			if (processor.getCurrentCaveLayer() != VisitedChunks.SURFACE_LAYER) {
-				line(red(VisitedChunks.shortName(keys.get(dimension)) + ": Xaero's map is in cave mode there, so it was skipped."
-						+ " Turn cave mode off and export again."));
-				nextDimension();
-				return;
-			}
 			String key = keys.get(dimension);
 			run = new Run(this, key, plan(key));
 			log("{}: {} area(s), up to {} images", VisitedChunks.shortName(key), run.areas.size(),
@@ -279,18 +343,24 @@ public final class XaeroExport {
 				message = Chat.info("Export cleaned: map exports/" + shown + ". Uploading it to"
 						+ " " + WebmapUpload.HOST + " now. It's marked as uploaded once the webmap has processed it.");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
+				if (!clearButtons.isEmpty()) {
+					message.append(Chat.buttons(clearButtons.toArray(Component[]::new)));
+				}
 				if (!uploads.isEmpty()) {
 					WebmapUpload.start(client, List.copyOf(uploads));
 				}
 			} else if (anyImages) {
 				Util.getPlatform().openFile(root.toFile());
 				message = Chat.success("Export cleaned and ready to upload: map exports/" + shown
-						+ (keys.size() == 1 ? ". Upload it to the " + VisitedChunks.shortName(keys.getFirst()) + " map."
+						+ (keys.size() == 1 && run != null ? ". Upload it to the " + WebmapUpload.webmapName(run.key) + " map."
 								: ". Upload each dimension's folder to its own map."));
 				buttons.addFirst(Chat.openButton("Open folder", root));
 				message.append(report).append(Chat.buttons(buttons.toArray(Component[]::new)));
 				if (!markButtons.isEmpty()) {
 					message.append(Chat.buttons(markButtons.toArray(Component[]::new)));
+				}
+				if (!clearButtons.isEmpty()) {
+					message.append(Chat.buttons(clearButtons.toArray(Component[]::new)));
 				}
 				Chat.status(client, "export done, see chat.", ChatFormatting.GREEN);
 			} else {
@@ -513,7 +583,14 @@ public final class XaeroExport {
 								+ " has been uploaded by hand: forgets what it contained, so the next export only has"
 								+ " areas mapped since. Works after a restart too."));
 			}
-			String name = VisitedChunks.shortName(key) + (job.keys.size() == 1 ? "" : "/");
+			List<String> others = sameMap(key);
+			if (!others.isEmpty()) {
+				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED, "/visited clear others "
+						+ VisitedChunks.shortName(key), "Forget what else was recorded for the " + WebmapUpload.webmapName(key)
+						+ " map, in " + String.join(", ", others.stream().map(VisitedChunks::displayName).toList())
+						+ " (asks to confirm first)"));
+			}
+			String name = VisitedChunks.displayName(key) + (job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)");
 			job.line(Component.literal(name + ": " + total.chunksKept() + " chunks (" + changed + " new or changed), "
 					+ left + (left == 1 ? " image" : " images")
 					+ (total.chunksBlackedOut() > 0 ? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "")

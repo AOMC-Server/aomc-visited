@@ -38,6 +38,9 @@ final class WebmapUpload {
 
 	/** One dimension of an export: the server it was recorded on, its record key, its export number, and its cleaned images. */
 	record Dimension(String server, String key, int export, List<Path> images) {
+		String map() {
+			return webmapName(key);
+		}
 	}
 
 	private WebmapUpload() {
@@ -69,10 +72,10 @@ final class WebmapUpload {
 		return running;
 	}
 
-	/** The webmap's name for a dimension, or null if it has no map for it. */
+	/** Null if the webmap has no map for it. */
 	static String webmapName(String key) {
-		return switch (key) {
-			case "minecraft:overworld" -> "overworld";
+		return switch (VisitedChunks.dimensionOf(key)) {
+			case "minecraft:overworld" -> VisitedChunks.isCaveMode(key) ? "overworld_caves" : "overworld";
 			case "minecraft:the_nether" -> "nether";
 			case "minecraft:the_end" -> "the_end";
 			default -> null;
@@ -115,7 +118,7 @@ final class WebmapUpload {
 		for (Dimension dimension : dimensions) {
 			for (Path image : dimension.images()) {
 				status(client, "uploading " + (++done) + " of " + total);
-				String problem = uploadImage(webmapName(dimension.key()), image);
+				String problem = uploadImage(dimension.map(), image);
 				if (problem != null) {
 					problems.put(dimension, image.getFileName() + ": " + problem);
 					break;
@@ -192,7 +195,7 @@ final class WebmapUpload {
 				? Chat.success("Uploaded to " + HOST + " and marked as uploaded.")
 				: Chat.warning("The upload didn't fully succeed. Only what's listed as marked was marked as uploaded.");
 		for (Dimension dimension : dimensions) {
-			String name = VisitedChunks.shortName(dimension.key());
+			String name = dimension.map() != null ? dimension.map() : VisitedChunks.shortName(dimension.key());
 			String problem = problems.get(dimension);
 			if (problem != null) {
 				report.append(Chat.line(Component.literal(name + ": not marked as uploaded, " + problem)
