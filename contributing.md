@@ -6,7 +6,8 @@
 - **Exporting** (`/visited export [dimension|record <name>] [without-packs|not-for-webmap]`, `XaeroExport`):
   exports each record in the cave mode it was recorded in (`XaeroPNGExporterMixin`), in compact areas
   (`ExportAreas`), blacks out unrecorded chunks (`TileMasker`), into `map exports/<server>/`. Records that would
-  go to the same webmap map get a button each instead. Offers to turn resource packs off.
+  go to the same webmap map get a button each instead. `/visited` lists every record with [Export] and
+  [Upload] buttons. Offers to turn resource packs off.
 - **Uploading** (`/visited upload [dimension]`, or `/visited upload <n>` from an export's [Upload] button,
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
   (the webmap calls the Nether `nether`, and the overworld in cave mode `overworld_caves`), then runs
