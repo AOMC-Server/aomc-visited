@@ -51,7 +51,7 @@ public final class Settings {
 		try {
 			Files.createDirectories(file.getParent());
 			try (Writer out = Files.newBufferedWriter(file)) {
-				properties.store(out, "AOMC Visited settings");
+				properties.store(out, "AOMC Webmapper settings");
 			}
 		} catch (IOException e) {
 			AomcVisitedClient.LOGGER.error("Could not save {}", file, e);

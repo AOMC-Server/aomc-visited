@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "aomc_visited",
 	"version": "${version}",
-	"name": "AOMC Visited",
-	"description": "Remembers where you have been, so you can export those areas from Xaero's World Map for the community webmap.",
+	"name": "AOMC Webmapper",
+	"description": "Remembers where you have been, then exports those areas from Xaero's World Map and uploads them to the community webmap.",
 	"authors": [
 		"sunngoose"
 	],

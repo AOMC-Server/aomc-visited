@@ -37,7 +37,13 @@ final class VisitedCommands {
 	}
 
 	static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-		dispatcher.register(literal("visited")
+		dispatcher.register(rootCommand("visited"));
+		dispatcher.register(rootCommand("webmapper"));
+	}
+
+	/** {@code /webmapper} is the same command under the mod's name; messages and buttons use {@code /visited}. */
+	private static LiteralArgumentBuilder<FabricClientCommandSource> rootCommand(String name) {
+		return literal(name)
 				.executes(context -> showCounts(context.getSource()))
 				.then(exportCommand())
 				.then(uploadCommand())
@@ -45,7 +51,7 @@ final class VisitedCommands {
 				.then(markUploadedCommand())
 				.then(literal("on").executes(context -> setEnabled(context.getSource(), true)))
 				.then(literal("off").executes(context -> setEnabled(context.getSource(), false)))
-				.then(overlayCommand()));
+				.then(overlayCommand());
 	}
 
 	private static LiteralArgumentBuilder<FabricClientCommandSource> exportCommand() {
@@ -210,8 +216,8 @@ final class VisitedCommands {
 		SETTINGS.setEnabled(enabled);
 		refreshOverlay();
 		source.sendFeedback(Chat.info(enabled
-				? "AOMC Visited is on: recording what Xaero's World Map maps. Turn it off with /visited off."
-				: "AOMC Visited is off: nothing is recorded or shown, and what's already recorded is kept. Turn it"
+				? "AOMC Webmapper is on: recording what Xaero's World Map maps. Turn it off with /visited off."
+				: "AOMC Webmapper is off: nothing is recorded or shown, and what's already recorded is kept. Turn it"
 						+ " back on with /visited on."));
 		return 1;
 	}

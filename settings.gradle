@@ -9,4 +9,4 @@ pluginManagement {
 	}
 }
 
-rootProject.name = 'aomc-visited'
+rootProject.name = 'aomc-webmapper'

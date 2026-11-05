@@ -25,7 +25,8 @@
 
 ## Files the mod writes
 
-Under `<game dir>/aomc_visited/`:
+Under `<game dir>/aomc_visited/` (the mod id and this folder kept the old name, so records survive the rename
+to AOMC Webmapper):
 
 - `server/<address>/<namespace>/<dimension>.txt`: a record, one chunk `x,z` per line, `x,z,c` if changed.
   Cave-mode records are `<dimension>/caves.txt` (Full) and `<dimension>/caves-y<height>.txt` (Layered).
@@ -35,7 +36,7 @@ Under `<game dir>/aomc_visited/`:
 ## Building
 
 - Minecraft 26.3, Fabric, Java 25 (set `JAVA_HOME` if Gradle picks an older one).
-- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`; versions end in `+fabric-26.3`. Gradle fetches
+- `./gradlew build` makes `build/libs/aomc-webmapper-<version>.jar`; versions end in `+fabric-26.3`. Gradle fetches
   Xaero's World Map from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and
   compiles against it.
 - **Bump `version` in `gradle.properties` for every build handed out for testing**, so the jar name and
