@@ -92,7 +92,8 @@ public final class ExportAreas {
 		int middle = alongX ? minX + width / 2 : minZ + height / 2;
 		List<Long> low = new ArrayList<>(), high = new ArrayList<>();
 		for (long cell : cells) {
-			((alongX ? x(cell) : z(cell)) < middle ? low : high).add(cell);
+			int position = alongX ? x(cell) : z(cell);
+			(position < middle ? low : high).add(cell);
 		}
 		split(low, regions, out);
 		split(high, regions, out);

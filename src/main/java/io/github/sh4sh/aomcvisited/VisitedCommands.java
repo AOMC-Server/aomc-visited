@@ -4,14 +4,14 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
@@ -23,63 +23,74 @@ import java.util.Map;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.SETTINGS;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
 	private static PendingExport pending;
 
-	private record PendingExport(String only, String record, XaeroExport.Mode mode) {
+	private record PendingExport(ExportTarget target, XaeroExport.Mode mode) {
 	}
 
 	private VisitedCommands() {
 	}
 
 	static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-		dispatcher.register(
-			Commands.literal("visited")
-					.executes(context -> showCounts(context.getSource()))
-					.then(exportCommand(Commands.literal("export"), null, NO_RECORD)
-							.then(exportCommand(Commands.literal("overworld"), "minecraft:overworld", NO_RECORD))
-							.then(exportCommand(Commands.literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-							.then(exportCommand(Commands.literal("the_end"), "minecraft:the_end", NO_RECORD))
-							.then(Commands.literal("record").then(exportCommand(recordArgument(), null, VisitedCommands::record))))
-					.then(Commands.literal("clear")
-							.executes(context -> clear(context.getSource(), false))
-							.then(Commands.literal("confirm").executes(context -> clear(context.getSource(), true)))
-							.then(Commands.literal("all")
-									.executes(context -> clearAll(context.getSource(), false))
-									.then(Commands.literal("confirm").executes(context -> clearAll(context.getSource(), true))))
-							.then(Commands.literal("others").then(recordArgument()
-									.executes(context -> clearOthers(context.getSource(), record(context), false))
-									.then(Commands.literal("confirm").executes(context ->
-											clearOthers(context.getSource(), record(context), true))))))
-					.then(uploadCommand(Commands.literal("upload"), null, NO_RECORD)
-							.then(uploadCommand(Commands.literal("overworld"), "minecraft:overworld", NO_RECORD))
-							.then(uploadCommand(Commands.literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-							.then(uploadCommand(Commands.literal("the_end"), "minecraft:the_end", NO_RECORD))
-							.then(Commands.literal("record").then(uploadCommand(recordArgument(), null, VisitedCommands::record)))
-							.then(Commands.argument("export", IntegerArgumentType.integer(1))
-									.executes(context -> uploadExport(context.getSource(),
-											IntegerArgumentType.getInteger(context, "export"), false))
-									.then(Commands.literal("confirm").executes(context -> uploadExport(
-											context.getSource(), IntegerArgumentType.getInteger(context, "export"), true)))))
-					.then(Commands.literal("mark-uploaded")
-							.executes(context -> markUploaded(context.getSource(), VISITED.latestExport()))
-							.then(Commands.argument("export", IntegerArgumentType.integer(1)).executes(context ->
-									markUploaded(context.getSource(), IntegerArgumentType.getInteger(context, "export")))))
-					.then(Commands.literal("on").executes(context -> setEnabled(context.getSource(), true)))
-					.then(Commands.literal("off").executes(context -> setEnabled(context.getSource(), false)))
-					.then(Commands.literal("overlay")
-							.executes(context -> setShow(context.getSource(), !SETTINGS.showOnMap()))
-							.then(Commands.literal("on").executes(context -> setShow(context.getSource(), true)))
-							.then(Commands.literal("off").executes(context -> setShow(context.getSource(), false)))));
+		dispatcher.register(literal("visited")
+				.executes(context -> showCounts(context.getSource()))
+				.then(exportCommand())
+				.then(uploadCommand())
+				.then(clearCommand())
+				.then(markUploadedCommand())
+				.then(literal("on").executes(context -> setEnabled(context.getSource(), true)))
+				.then(literal("off").executes(context -> setEnabled(context.getSource(), false)))
+				.then(overlayCommand()));
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> exportCommand() {
+		return exportOptions(literal("export"), context -> ExportTarget.EVERYTHING)
+				.then(exportOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
+				.then(exportOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
+				.then(exportOptions(literal("the_end"), context -> ExportTarget.ofDimension("minecraft:the_end")))
+				.then(literal("record").then(exportOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))));
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> uploadCommand() {
+		return uploadOptions(literal("upload"), context -> ExportTarget.EVERYTHING)
+				.then(uploadOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
+				.then(uploadOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
+				.then(uploadOptions(literal("the_end"), context -> ExportTarget.ofDimension("minecraft:the_end")))
+				.then(literal("record").then(uploadOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))))
+				.then(confirmable(exportArgument(),
+						(context, confirmed) -> uploadExport(context.getSource(), exportNumber(context), confirmed)));
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> clearCommand() {
+		return confirmable(literal("clear"), (context, confirmed) -> clear(context.getSource(), confirmed))
+				.then(confirmable(literal("all"), (context, confirmed) -> clearAll(context.getSource(), confirmed)))
+				.then(literal("others").then(confirmable(recordArgument(),
+						(context, confirmed) -> clearOthers(context.getSource(), record(context), confirmed))));
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> markUploadedCommand() {
+		return literal("mark-uploaded")
+				.executes(context -> markUploaded(context.getSource(), VISITED.latestExport()))
+				.then(exportArgument().executes(context -> markUploaded(context.getSource(), exportNumber(context))));
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> overlayCommand() {
+		return literal("overlay")
+				.executes(context -> setShow(context.getSource(), !SETTINGS.showOnMap()))
+				.then(literal("on").executes(context -> setShow(context.getSource(), true)))
+				.then(literal("off").executes(context -> setShow(context.getSource(), false)));
 	}
 
 	static void tick(Minecraft client) {
 		if (pending != null) {
 			PendingExport export = pending;
 			pending = null;
-			Component error = XaeroExport.start(client, export.only(), export.record(), export.mode(), null);
+			Component error = XaeroExport.start(client, export.target(), export.mode(), null);
 			if (error != null) {
 				Chat.send(client, error);
 			}
@@ -215,19 +226,27 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	/** The record a command names: from its {@code record <name>} argument, or none. */
-	private interface RecordArgument {
-		String get(CommandContext<CommandSourceStack> context) throws CommandSyntaxException;
+	/** Reads the export target from the command, which may name a record. */
+	private interface TargetArgument {
+		ExportTarget get(CommandContext<CommandSourceStack> context) throws CommandSyntaxException;
 	}
 
-	private static final RecordArgument NO_RECORD = context -> null;
+	/** A command that asks first, and runs under {@code confirm}. */
+	private interface Confirmable {
+		int run(CommandContext<CommandSourceStack> context, boolean confirmed) throws CommandSyntaxException;
+	}
+
+	private static <S extends ArgumentBuilder<CommandSourceStack, S>> S confirmable(S command, Confirmable action) {
+		return command.executes(context -> action.run(context, false))
+				.then(literal("confirm").executes(context -> action.run(context, true)));
+	}
 
 	static String recordCommand(String verb, String key) {
 		return "/visited " + verb + " record " + VisitedChunks.shortName(key);
 	}
 
 	private static RequiredArgumentBuilder<CommandSourceStack, String> recordArgument() {
-		return Commands.argument("name", StringArgumentType.word());
+		return argument("name", StringArgumentType.word());
 	}
 
 	private static String record(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -239,35 +258,33 @@ final class VisitedCommands {
 		return key;
 	}
 
-	private static <S extends ArgumentBuilder<CommandSourceStack, S>> S exportCommand(
-			S command, String only, RecordArgument record) {
-		return command.executes(context -> requestExport(context.getSource(), only, record.get(context), false))
-				.then(Commands.literal("not-for-webmap").executes(context ->
-						requestExport(context.getSource(), only, record.get(context), true)))
-				.then(Commands.literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), only, record.get(context), false)));
+	private static RequiredArgumentBuilder<CommandSourceStack, Integer> exportArgument() {
+		return argument("export", IntegerArgumentType.integer(1));
 	}
 
-	private static <S extends ArgumentBuilder<CommandSourceStack, S>> S uploadCommand(
-			S command, String only, RecordArgument record) {
-		return command.executes(context -> requestUpload(context.getSource(), only, record.get(context), false))
-				.then(Commands.literal("confirm").executes(context ->
-						requestUpload(context.getSource(), only, record.get(context), true)))
-				.then(Commands.literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), only, record.get(context), true)));
+	private static int exportNumber(CommandContext<CommandSourceStack> context) {
+		return IntegerArgumentType.getInteger(context, "export");
 	}
 
-	private static String target(String only, String record) {
-		return record != null ? " record " + VisitedChunks.shortName(record) : only != null ? " " + VisitedChunks.shortName(only) : "";
+	private static <S extends ArgumentBuilder<CommandSourceStack, S>> S exportOptions(
+			S command, TargetArgument target) {
+		return command.executes(context -> requestExport(context.getSource(), target.get(context), false))
+				.then(literal("not-for-webmap").executes(context ->
+						requestExport(context.getSource(), target.get(context), true)))
+				.then(literal("without-packs").executes(context ->
+						exportWithoutPacks(context.getSource(), target.get(context), false)));
 	}
 
-	private static String what(String only, String record) {
-		return record != null ? VisitedChunks.displayName(record) : only != null ? VisitedChunks.shortName(only)
-				: "everything recorded";
+	private static <S extends ArgumentBuilder<CommandSourceStack, S>> S uploadOptions(
+			S command, TargetArgument target) {
+		return confirmable(command,
+				(context, confirmed) -> requestUpload(context.getSource(), target.get(context), confirmed))
+				.then(literal("without-packs").executes(context ->
+						exportWithoutPacks(context.getSource(), target.get(context), true)));
 	}
 
-	/** {@code /visited upload [<dimension>]}: exports, then uploads to the webmap and marks as uploaded. */
-	private static int requestUpload(CommandSourceStack source, String only, String record, boolean confirmed) {
+	/** {@code /visited upload [<dimension>|record <name>]}: exports, then uploads to the webmap and marks as uploaded. */
+	private static int requestUpload(CommandSourceStack source, ExportTarget target, boolean confirmed) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
@@ -282,8 +299,8 @@ final class VisitedCommands {
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited upload" + target(only, record);
-		String what = what(only, record);
+		String command = "/visited upload" + target.commandSuffix();
+		String what = target.description();
 		if (!packs.isEmpty()) {
 			source.sendSystemMessage(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
 					+ " an upload. These are on:")
@@ -300,7 +317,7 @@ final class VisitedCommands {
 							"Export and upload " + what))));
 			return 1;
 		}
-		pending = new PendingExport(only, record, XaeroExport.Mode.UPLOAD);
+		pending = new PendingExport(target, XaeroExport.Mode.UPLOAD);
 		return 1;
 	}
 
@@ -333,13 +350,13 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static int requestExport(CommandSourceStack source, String only, String record, boolean withPacks) {
+	private static int requestExport(CommandSourceStack source, ExportTarget target, boolean withPacks) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited export" + target(only, record);
+		String command = "/visited export" + target.commandSuffix();
 		if (!packs.isEmpty() && !withPacks) {
 			source.sendSystemMessage(Chat.warning("Resource packs change the colours of the exported map. These are on:")
 					.append(Chat.line(String.join(", ", packs)))
@@ -353,11 +370,11 @@ final class VisitedCommands {
 											+ " its colours may be off"))));
 			return 0;
 		}
-		pending = new PendingExport(only, record, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
+		pending = new PendingExport(target, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
 		return 1;
 	}
 
-	private static int exportWithoutPacks(CommandSourceStack source, String only, String record, boolean upload) {
+	private static int exportWithoutPacks(CommandSourceStack source, ExportTarget target, boolean upload) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
@@ -373,7 +390,7 @@ final class VisitedCommands {
 		Minecraft client = Minecraft.getInstance();
 		XaeroExport.Mode mode = upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT;
 		if (ResourcePacks.playerPacks(client).isEmpty()) {
-			pending = new PendingExport(only, record, mode);
+			pending = new PendingExport(target, mode);
 			return 1;
 		}
 		source.sendSystemMessage(Chat.info("Turning your resource packs off for the export. They'll come back on"
@@ -381,7 +398,7 @@ final class VisitedCommands {
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));
 		ResourcePacks.turnOff(client, restore -> {
-			Component error = XaeroExport.start(client, only, record, mode, restore);
+			Component error = XaeroExport.start(client, target, mode, restore);
 			if (error != null) {
 				Chat.send(client, error);
 				restore.run();
