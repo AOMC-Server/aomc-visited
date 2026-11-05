@@ -12,12 +12,9 @@
   (the webmap calls the Nether `nether`), then runs `/api/map/process` and reads its streamed progress. Only
   if every image was accepted and processing finished without an error naming one of them is the export
   marked as uploaded. Nothing is sent unless the player asks. Exports made with resource packs on
-  (`not-for-webmap`) are never offered for upload. A unique prefix on uploaded filenames could tell our
-  images apart in the shared processing log, if errors ever get mixed up.
+  (`not-for-webmap`) are never offered for upload.
 - **Mark as uploaded** (`/visited mark-uploaded <n>`, a button on the export message): forgets the chunks that
   export contained, except ones Xaero has changed since. Works after a restart (`exports.txt`).
-  Similar to `/visited clear`, which removes all old exports/records (not just the marked upload) in a given
-  dimension.
 - **Old map data**: the record is kept until the player exports it or clears it. On joining after more than
   six hours offline (`OUT_OF_DATE_MS`), a reminder warns that the data may be out of date and offers
   [Export it now] and [Clear old session] (`/visited clear all`).
@@ -39,13 +36,9 @@ Under `<game dir>/aomc_visited/`:
   from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and compiles against it.
 - **Bump `version` in `gradle.properties` for every build handed out for testing**, so the jar name and
   Fabric's mod list show which build is installed.
-- `./gradlew runClient` needs a desktop session.
 
-## Branches, CI and releases
+## Releases
 
-- Work on a feature branch and open a pull request.
-- CI (`.github/workflows/build.yml`) builds every pull request and every push to `main`, and attaches the
-  jar to the run as an artifact.
-- Releases: increment version in `gradle.properties`, push to `main`, CI tags the
-  commit `v<version>` and publishes a GitHub release with the jar.
+Increment version in `gradle.properties`, push to `main`, CI tags the commit `v<version>` and publishes a
+GitHub release with the jar.
 
