@@ -1,4 +1,4 @@
-# AOMC Visited
+# AOMC Webmapper
 
 A NeoForge 1.21.1 mod for the About Oliver Minecraft Create server. This mod records where you've been and
 automatically prepares Xaero exports that you can upload to the community webmap at https://create.diorite.xyz
@@ -19,7 +19,7 @@ To check the images before uploading, use **`/visited export`** instead: it open
 the chat message has an **[Upload]** button per dimension. You can also upload the images yourself on the
 webmap, then click **[Mark as uploaded]**.
 
-Turn Xaero's cave mode off before exporting. If you have a resource pack on, the mod offers to turn it off
+If you have a resource pack on, the mod offers to turn it off
 for the export and back on afterwards, since they can change the map's colours.
 
 If you don't export before logging off, the mod keeps what you mapped, so you can continue with the last session.
@@ -38,6 +38,8 @@ can choose to continue with the last session or clear the data to start a new se
 | `/visited overlay on\|off` | Show or hide the green overlay on Xaero's map |
 | `/visited clear` | Forget what's recorded in your current dimension (asks to confirm) |
 | `/visited clear all` | Forget everything recorded on this server (asks to confirm) |
+
+`/webmapper` works the same as `/visited`, e.g. `/webmapper upload`.
 
 ## Building
 

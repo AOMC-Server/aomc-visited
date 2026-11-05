@@ -28,7 +28,7 @@ final class WebmapUpload {
 	/** Record folders of the survival server the webmap shows; its creative server is on the same host. */
 	private static final Set<String> SERVERS = Set.of("server/create.diorite.xyz", "server/gw.algot.net_25037");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
-	private static final String USER_AGENT = "AOMC Visited/" + ModList.get()
+	private static final String USER_AGENT = "AOMC Webmapper/" + ModList.get()
 			.getModContainerById(AomcVisitedClient.MOD_ID).map(mod -> mod.getModInfo().getVersion().toString())
 			.orElse("unknown");
 
@@ -95,7 +95,7 @@ final class WebmapUpload {
 			}
 		}
 		running = true;
-		Thread.ofVirtual().name("AOMC Visited upload").start(() -> {
+		Thread.ofVirtual().name("AOMC Webmapper upload").start(() -> {
 			try {
 				Map<Dimension, String> problems = upload(client, dimensions);
 				client.execute(() -> finish(client, dimensions, problems));
@@ -138,7 +138,7 @@ final class WebmapUpload {
 			boolean complete = false;
 			if (response.statusCode() == 200) {
 				for (String line : (Iterable<String>) response.body()::iterator) {
-					AomcVisitedClient.LOGGER.info("[AOMC Visited] webmap: {}", line);
+					AomcVisitedClient.LOGGER.info("[AOMC Webmapper] webmap: {}", line);
 					status(client, "webmap: " + line.strip());
 					complete |= line.startsWith("Processing complete");
 					if (line.contains("Error processing ")) {
@@ -175,7 +175,7 @@ final class WebmapUpload {
 							HttpRequest.BodyPublishers.ofFile(image), HttpRequest.BodyPublishers.ofByteArray(tail)))
 					.build();
 			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-			AomcVisitedClient.LOGGER.info("[AOMC Visited] upload: {} -> HTTP {} {}", image.getFileName(),
+			AomcVisitedClient.LOGGER.info("[AOMC Webmapper] upload: {} -> HTTP {} {}", image.getFileName(),
 					response.statusCode(), response.body());
 			if (response.statusCode() != 200) {
 				return "the webmap answered HTTP " + response.statusCode();

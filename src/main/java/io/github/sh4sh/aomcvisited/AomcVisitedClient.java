@@ -53,7 +53,7 @@ public class AomcVisitedClient {
 			VisitedHighlighter.registerEvents();
 		}
 
-		LOGGER.info("AOMC Visited loaded");
+		LOGGER.info("AOMC Webmapper loaded");
 	}
 
 	private void tick(Minecraft client) {

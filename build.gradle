@@ -6,7 +6,7 @@ version = project.version
 group = project.group
 
 base {
-	archivesName = 'aomc-visited'
+	archivesName = 'aomc-webmapper'
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)

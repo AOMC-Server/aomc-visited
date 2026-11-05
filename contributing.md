@@ -28,7 +28,8 @@
 
 ## Files the mod writes
 
-Under `<game dir>/aomc_visited/`:
+Under `<game dir>/aomc_visited/` (the mod id and this folder kept the old name, so records survive the rename
+to AOMC Webmapper):
 
 - `server/<address>/<namespace>/<dimension>.txt`: a record, one chunk `x,z` per line, `x,z,c` if changed.
   Cave-mode records are `<dimension>/caves.txt` (Full) and `<dimension>/caves-y<height>.txt` (Layered).
@@ -40,7 +41,7 @@ Under `<game dir>/aomc_visited/`:
 - This branch (`neoforge-1.21.1`): Minecraft 1.21.1, NeoForge (ModDevGradle), Java 21, for the Create server and
   its webmap at `create.diorite.xyz`. `main` is the Fabric 26.3 version. Gradle downloads Java 21 if it isn't
   installed; it can run on a newer one.
-- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`; versions on this branch end in
+- `./gradlew build` makes `build/libs/aomc-webmapper-<version>.jar`; versions on this branch end in
   `+neoforge-1.21.1`. Gradle fetches Xaero's World Map from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and compiles against it.
 - **Bump `version` in `gradle.properties` for every build handed out for testing**, so the jar name and
   the mod list show which build is installed.
