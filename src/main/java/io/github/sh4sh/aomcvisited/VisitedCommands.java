@@ -230,9 +230,9 @@ final class VisitedCommands {
 			source.sendSystemMessage(Chat.error("An upload is already running."));
 			return 0;
 		}
-		String what = export.images().size() + " images of " + VisitedChunks.shortName(export.key());
+		String what = export.images().size() + " images to the " + export.map() + " map";
 		if (!confirmed) {
-			source.sendSystemMessage(Chat.info("Upload " + what + " to " + WebmapUpload.HOST + "? They're marked as uploaded once"
+			source.sendSystemMessage(Chat.info("Upload " + what + " on " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
 							+ " confirm", "Upload " + what))));

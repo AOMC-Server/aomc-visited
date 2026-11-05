@@ -33,8 +33,12 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: its record key, its export number, and its cleaned images. */
-	record Dimension(String key, int export, List<Path> images) {
+	/** One dimension of an export: its record key, whether Xaero was in cave mode, its export number, and its cleaned images. */
+	record Dimension(String key, boolean caveMode, int export, List<Path> images) {
+		/** The webmap's name for this map, or null if it has none. */
+		String map() {
+			return webmapName(key, caveMode);
+		}
 	}
 
 	private WebmapUpload() {
@@ -52,10 +56,10 @@ final class WebmapUpload {
 		return running;
 	}
 
-	/** The webmap's name for a dimension, or null if it has no map for it. */
-	static String webmapName(String key) {
+	/** The webmap's name for a dimension's map, or null if it has none. Only the overworld has a separate cave map. */
+	static String webmapName(String key, boolean caveMode) {
 		return switch (key) {
-			case "minecraft:overworld" -> "overworld";
+			case "minecraft:overworld" -> caveMode ? "overworld_caves" : "overworld";
 			case "minecraft:the_nether" -> "nether";
 			case "minecraft:the_end" -> "the_end";
 			default -> null;
@@ -91,7 +95,7 @@ final class WebmapUpload {
 		for (Dimension dimension : dimensions) {
 			for (Path image : dimension.images()) {
 				status(client, "uploading " + (++done) + " of " + total);
-				String problem = uploadImage(webmapName(dimension.key()), image);
+				String problem = uploadImage(dimension.map(), image);
 				if (problem != null) {
 					problems.put(dimension, image.getFileName() + ": " + problem);
 					break;
@@ -168,7 +172,7 @@ final class WebmapUpload {
 				? Chat.success("Uploaded to " + HOST + " and marked as uploaded.")
 				: Chat.warning("The upload didn't fully succeed. Only what's listed as marked was marked as uploaded.");
 		for (Dimension dimension : dimensions) {
-			String name = VisitedChunks.shortName(dimension.key());
+			String name = dimension.map() != null ? dimension.map() : VisitedChunks.shortName(dimension.key());
 			String problem = problems.get(dimension);
 			if (problem != null) {
 				report.append(Chat.line(Component.literal(name + ": not marked as uploaded, " + problem)

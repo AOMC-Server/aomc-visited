@@ -248,12 +248,13 @@ public final class XaeroExport {
 			String key = keys.get(dimension);
 			// Any cave mode is allowed, but the player should see which map they're about to upload.
 			int layer = processor.getCurrentCaveLayer();
-			if (layer != VisitedChunks.SURFACE_LAYER) {
+			boolean caveMode = layer != VisitedChunks.SURFACE_LAYER;
+			if (caveMode) {
 				line(Component.literal(VisitedChunks.shortName(key) + ": exported in "
 						+ (layer == Integer.MIN_VALUE ? "Full cave mode" : "Layered cave mode (from about y " + layer * 16 + ")")
 						+ ", as Xaero shows it.").withStyle(ChatFormatting.GOLD));
 			}
-			run = new Run(this, key, plan(key));
+			run = new Run(this, key, caveMode, plan(key));
 			log("{}: {} area(s), up to {} images", VisitedChunks.shortName(key), run.areas.size(),
 					run.areas.stream().mapToInt(ExportAreas.Box::tiles).sum());
 			showProgress();
@@ -307,6 +308,7 @@ public final class XaeroExport {
 	private static final class Run {
 		private final Job job;
 		private final String key;
+		private final boolean caveMode;
 		private final List<ExportAreas.Box> areas;
 		private final LongOpenHashSet exported = new LongOpenHashSet();
 		private int index;
@@ -317,9 +319,10 @@ public final class XaeroExport {
 		private long areaStarted;
 		private Component doneProblem;
 
-		Run(Job job, String key, List<ExportAreas.Box> areas) {
+		Run(Job job, String key, boolean caveMode, List<ExportAreas.Box> areas) {
 			this.job = job;
 			this.key = key;
+			this.caveMode = caveMode;
 			this.areas = areas;
 		}
 
@@ -493,7 +496,7 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(key, number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(key, caveMode, number, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
