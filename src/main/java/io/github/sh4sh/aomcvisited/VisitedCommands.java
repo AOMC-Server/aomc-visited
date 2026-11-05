@@ -68,8 +68,8 @@ final class VisitedCommands {
 			PendingExport export = pending;
 			pending = null;
 			Component error = XaeroExport.start(client, export.only(), export.mode(), null);
-			if (error != null && client.player != null) {
-				client.player.sendSystemMessage(error);
+			if (error != null) {
+				Chat.send(client, error);
 			}
 		}
 	}
@@ -106,9 +106,7 @@ final class VisitedCommands {
 			return 1;
 		}
 		int forgotten = VISITED.clear(dimension);
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		refreshOverlay();
 		source.sendSystemMessage(Chat.success("Forgot " + forgotten + " chunks recorded in " + id + ".")
 				.append(Chat.line("Zoomed-out world map views may show the old tint until you zoom in on them once.")));
 		return 1;
@@ -128,9 +126,7 @@ final class VisitedCommands {
 			return 1;
 		}
 		int forgotten = VISITED.clearAll();
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		refreshOverlay();
 		source.sendSystemMessage(Chat.success("Forgot " + forgotten + " chunks in every dimension.")
 				.append(Chat.line("Zoomed-out world map views may show the old tint until you zoom in on them once.")));
 		return 1;
@@ -148,9 +144,7 @@ final class VisitedCommands {
 					+ " since. To start over, use /visited clear."));
 			return 0;
 		}
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		refreshOverlay();
 		source.sendSystemMessage(Chat.success("Marked as uploaded: forgot " + forgotten + " chunks.")
 				.append(Chat.line("Anything that changed since that export is kept for the next one.")));
 		return 1;
@@ -158,9 +152,7 @@ final class VisitedCommands {
 
 	private static int setEnabled(CommandSourceStack source, boolean enabled) {
 		SETTINGS.setEnabled(enabled);
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		refreshOverlay();
 		source.sendSystemMessage(Chat.info(enabled
 				? "AOMC Visited is on: recording what Xaero's World Map maps. Turn it off with /visited off."
 				: "AOMC Visited is off: nothing is recorded or shown, and what's already recorded is kept. Turn it"
@@ -170,9 +162,7 @@ final class VisitedCommands {
 
 	private static int setShow(CommandSourceStack source, boolean show) {
 		SETTINGS.setShowOnMap(show);
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		refreshOverlay();
 		source.sendSystemMessage(Chat.info(show
 				? "Showing what the next export will keep on Xaero's World Map. Hide it with /visited overlay off."
 				: "No longer showing the record on Xaero's World Map. Show it again with /visited overlay on."));
@@ -303,12 +293,16 @@ final class VisitedCommands {
 			Component error = XaeroExport.start(client, only, upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT,
 					restore);
 			if (error != null) {
-				if (client.player != null) {
-					client.player.sendSystemMessage(error);
-				}
+				Chat.send(client, error);
 				restore.run();
 			}
 		});
 		return 1;
+	}
+
+	private static void refreshOverlay() {
+		if (xaeroInstalled()) {
+			VisitedHighlighter.refreshAll();
+		}
 	}
 }
