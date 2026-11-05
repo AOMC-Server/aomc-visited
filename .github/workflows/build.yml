@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   changes:
@@ -54,5 +54,14 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
 
-      # No releases from this branch yet: builds are only attached to the run for testing. When it's ready,
-      # bring back main's release step; the "+neoforge-1.21.1" version suffix keeps its tags apart.
+      # Pre-releases, and never "Latest": that stays main's Fabric release for the main server.
+      - name: Release a new version
+        if: github.ref == 'refs/heads/neoforge-1.21.1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2)
+          if ! gh release view "v$version" >/dev/null 2>&1; then
+            gh release create "v$version" "build/libs/aomc-visited-$version.jar" \
+              --target "$GITHUB_SHA" --title "$version" --generate-notes --prerelease --latest=false
+          fi
