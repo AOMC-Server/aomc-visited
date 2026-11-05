@@ -49,7 +49,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aomc-visited
+          name: aomc-visited-fabric-26.3
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar

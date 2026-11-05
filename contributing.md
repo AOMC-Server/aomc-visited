@@ -36,8 +36,10 @@ Under `<game dir>/aomc_visited/`:
 ## Building
 
 - Minecraft 26.3, Fabric, Java 25 (set `JAVA_HOME` if Gradle picks an older one).
-- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`. Gradle fetches Xaero's World Map
-  from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and compiles against it.
+- `./gradlew build` makes `build/libs/aomc-visited-<version>.jar`; versions end in `+fabric-26.3`, like the
+  NeoForge branch's `+neoforge-1.21.1`, so the jar and release say which loader they're for. Gradle fetches
+  Xaero's World Map from Modrinth's Maven repository (`xaero_worldmap_version` in `gradle.properties`) and
+  compiles against it.
 - **Bump `version` in `gradle.properties` for every build handed out for testing**, so the jar name and
   Fabric's mod list show which build is installed.
 
