@@ -4,12 +4,15 @@
   map, per server, dimension (only dimensions named overworld, Nether and End are supported) and cave mode, since
   Xaero keeps a separate map for each cave mode (and each cave start in Layered mode). Marked "changed" if its map
   data was updated. Saved once per minute and when leaving the server.
-- **Exporting** (`/visited export [overworld|the_nether|the_end] [without-packs|not-for-webmap]`, `XaeroExport`):
-  runs Xaero's export for each dimension with records, in a few compact areas (`ExportAreas`). Trims the export by
-  blacking out chunks not in records (`TileMasker`), and gathers the images in one folder. Works in any cave
-  mode: exports the map Xaero is showing, with that cave mode's record, and the report names the cave mode if
-  it's on. The overlay shows the same record.
-  Offers to turn resource packs off for the export, since they may change Xaero's colours.
+- **Exporting** (`/visited export [overworld|the_nether|the_end|record <name>] [without-packs|not-for-webmap]`,
+  `XaeroExport`): runs Xaero's export for each record, in a few compact areas (`ExportAreas`). Trims the export by
+  blacking out chunks not in records (`TileMasker`), and gathers the images in one folder. Each record is exported
+  in the cave mode it was recorded in, whatever Xaero is showing (`XaeroPNGExporterMixin`). When several records
+  would go to the same webmap map (e.g. the Nether in Full and with cave mode off), none of them is exported:
+  the report has a button for each of the three biggest (`/visited export record the_nether-caves`), and after
+  one is exported, [Clear the rest] (`/visited clear others <name>`). `/visited` lists the records and their names.
+  The overlay shows the record of the cave mode Xaero is showing. Offers to turn resource packs off for the
+  export, since they may change Xaero's colours.
 - **Uploading** (`/visited upload [dimension]`, or `/visited upload <n>` from an export's [Upload] button,
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
   (the webmap calls the Nether `nether`; an overworld export made in cave mode goes to `overworld_caves`), then runs `/api/map/process` and reads its streamed progress. Only
