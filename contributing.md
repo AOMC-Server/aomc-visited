@@ -52,6 +52,6 @@ Under `<game dir>/aomc_visited/`:
   `neoforge-1.21.1`), and attaches the jar to the run as an artifact.
 - Releases: increment version in `gradle.properties`, push to `main`, CI tags the
   commit `v<version>` and publishes a GitHub release with the jar.
-- On the `neoforge-1.21.1` branch the same happens when `version` changes there, as a pre-release that is
-  never marked "Latest" (that stays the Fabric release for the main server).
+- On the `neoforge-1.21.1` branch the same happens when `version` changes there, as a release that is never
+  marked "Latest" (that stays the Fabric release for the main server).
 
