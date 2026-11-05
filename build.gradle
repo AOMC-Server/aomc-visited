@@ -4,18 +4,6 @@ plugins {
 
 // Client-only mod, so a single source set: no splitEnvironmentSourceSets().
 
-loom {
-	runs {
-		client {
-			// macOS only lets the first thread open windows; Mojang's launcher passes this flag
-			// for 26.3, but runClient didn't, and the game died with SIGTRAP at window setup.
-			if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-				vmArg "-XstartOnFirstThread"
-			}
-		}
-	}
-}
-
 repositories {
 	maven {
 		url = "https://api.modrinth.com/maven"
