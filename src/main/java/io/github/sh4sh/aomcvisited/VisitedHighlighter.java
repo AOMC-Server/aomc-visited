@@ -70,7 +70,7 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		if (processor == null || processor.getMapWorld() == null) {
 			return;
 		}
-		// Xaero's cached hashes are per region, not per cave mode, so a switch must redraw every region.
+		// Xaero caches highlight hashes per region, not per cave mode.
 		int layer = processor.getCurrentCaveLayer();
 		if (layer != shownLayer) {
 			shownLayer = layer;
@@ -99,7 +99,6 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		return !exportScreenOpen && AomcVisitedClient.SETTINGS.enabled() && AomcVisitedClient.SETTINGS.showOnMap();
 	}
 
-	/** The record of the cave mode Xaero is showing, which is the map the next export takes. */
 	private static String key(ResourceKey<Level> dimension) {
 		MapProcessor processor = processor();
 		return VisitedChunks.recordKey(dimension.location().toString(),

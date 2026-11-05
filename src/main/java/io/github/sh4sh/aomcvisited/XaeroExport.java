@@ -120,7 +120,7 @@ public final class XaeroExport {
 					+ " Xaero's World Map may not be supported.");
 		}
 		List<String> names = keys.stream().map(VisitedChunks::shortName).toList();
-		// Which cave mode's record is exported is only known once Xaero shows the dimension; count the largest.
+		// The cave mode, so the record, is only known once Xaero shows the dimension.
 		int tiles = keys.stream().mapToInt(dimension -> AomcVisitedClient.VISITED.recordKeys(dimension).stream()
 				.mapToInt(key -> plan(key).stream().mapToInt(ExportAreas.Box::tiles).sum()).max().orElse(0)).sum();
 		ResourceKey<Level> showing = processor.getMapWorld().getCurrentDimensionId();
@@ -247,7 +247,6 @@ public final class XaeroExport {
 		}
 
 		private void beginDimensionExport() {
-			// Any cave mode works: Xaero exports the map it's showing, so the export uses that map's record.
 			String key = VisitedChunks.recordKey(keys.get(dimension), processor.getCurrentCaveLayer());
 			String mode = VisitedChunks.caveModeName(key);
 			if (AomcVisitedClient.VISITED.snapshot(key).isEmpty()) {

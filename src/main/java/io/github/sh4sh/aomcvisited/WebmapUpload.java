@@ -35,7 +35,6 @@ final class WebmapUpload {
 
 	/** One dimension of an export: its record key, its export number, and its cleaned images. */
 	record Dimension(String key, int export, List<Path> images) {
-		/** The webmap's name for this map, or null if it has none. */
 		String map() {
 			return webmapName(key);
 		}
@@ -56,7 +55,7 @@ final class WebmapUpload {
 		return running;
 	}
 
-	/** The webmap's name for a record's map, or null if it has none. Only the overworld has a separate cave map. */
+	/** Null if the webmap has no map for it. */
 	static String webmapName(String key) {
 		return switch (VisitedChunks.dimensionOf(key)) {
 			case "minecraft:overworld" -> VisitedChunks.isCaveMode(key) ? "overworld_caves" : "overworld";

@@ -30,8 +30,8 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
- * Records are keyed by dimension id, plus the cave mode for a cave-mode map ({@link #recordKey}). Synchronized
- * because the disconnect event may arrive off the main thread.
+ * Records are keyed by dimension id and cave mode. Synchronized because the disconnect event may arrive off the
+ * main thread.
  */
 public final class VisitedChunks {
 	private static final String EXPORTS_HEADER = "# AOMC Visited: exports not yet marked as uploaded."
@@ -273,7 +273,6 @@ public final class VisitedChunks {
 		return server;
 	}
 
-	/** Forgets every record of the dimension, in every cave mode. */
 	public synchronized int clear(ResourceKey<Level> dimension) {
 		int forgotten = 0;
 		for (String key : recordKeys(dimension.location().toString())) {
@@ -363,13 +362,11 @@ public final class VisitedChunks {
 		return forgotten;
 	}
 
-	/** The dimensions with something recorded, in any cave mode. */
 	public synchronized List<String> dimensions() {
 		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
 				.map(record -> dimensionOf(record.getKey())).distinct().toList();
 	}
 
-	/** The dimension's records with something in them, one per cave mode. */
 	public synchronized List<String> recordKeys(String dimension) {
 		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
 				.map(Map.Entry::getKey).filter(key -> dimensionOf(key).equals(dimension)).toList();
@@ -511,10 +508,7 @@ public final class VisitedChunks {
 		}
 	}
 
-	/**
-	 * Xaero keeps a separate map for each cave mode, and for each cave start in Layered mode, so each gets its own
-	 * record: what Xaero drew in one never says the others are up to date.
-	 */
+	/** Xaero keeps a separate map per cave mode and Layered cave start; one being fresh says nothing of the others. */
 	public static String recordKey(String dimension, int layer) {
 		if (layer == SURFACE_LAYER) {
 			return dimension;
@@ -531,7 +525,6 @@ public final class VisitedChunks {
 		return key.indexOf('/') >= 0;
 	}
 
-	/** How the cave mode reads in chat, or null with cave mode off. */
 	public static String caveModeName(String key) {
 		if (!isCaveMode(key)) {
 			return null;
@@ -540,7 +533,7 @@ public final class VisitedChunks {
 		return mode.equals("caves") ? "Full cave mode" : "Layered cave mode from about y " + mode.substring("caves-y".length());
 	}
 
-	/** Also used for folder names, so a cave-mode record's slash becomes a dash. */
+	/** Also a folder name, hence the dash. */
 	public static String shortName(String key) {
 		return (key.startsWith("minecraft:") ? key.substring("minecraft:".length()) : key).replace('/', '-');
 	}
