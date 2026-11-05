@@ -9,13 +9,11 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.Map;
 
-import static io.github.sh4sh.aomcvisited.AomcVisitedClient.LOGGER;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.SETTINGS;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
@@ -207,7 +205,7 @@ final class VisitedCommands {
 			source.sendSystemMessage(Chat.error("An upload is already running."));
 			return 0;
 		}
-		List<String> packs = playerPacks(Minecraft.getInstance());
+		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited upload" + (only == null ? "" : " " + VisitedChunks.shortName(only));
 		String what = only == null ? "everything recorded" : VisitedChunks.shortName(only);
 		if (!packs.isEmpty()) {
@@ -264,7 +262,7 @@ final class VisitedCommands {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
-		List<String> packs = playerPacks(Minecraft.getInstance());
+		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited export" + (only == null ? "" : " " + VisitedChunks.shortName(only));
 		if (!packs.isEmpty() && !withPacks) {
 			source.sendSystemMessage(Chat.warning("Resource packs change the colours of the exported map. These are on:")
@@ -283,13 +281,6 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static List<String> playerPacks(Minecraft client) {
-		// The player's own packs are "file/<name>"; their names can contain colour codes.
-		return client.getResourcePackRepository().getSelectedIds().stream()
-				.filter(id -> id.startsWith("file/"))
-				.map(id -> ChatFormatting.stripFormatting(id.substring("file/".length()))).toList();
-	}
-
 	private static int exportWithoutPacks(CommandSourceStack source, String only, boolean upload) {
 		if (!xaeroInstalled()) {
 			source.sendSystemMessage(Chat.error("Exporting needs Xaero's World Map."));
@@ -304,44 +295,20 @@ final class VisitedCommands {
 			return 0;
 		}
 		Minecraft client = Minecraft.getInstance();
-		PackRepository repository = client.getResourcePackRepository();
-		// In order: the list's order is the packs' priority, and Minecraft keeps the order it's given.
-		List<String> original = List.copyOf(repository.getSelectedIds());
-		repository.setSelected(original.stream().filter(id -> !id.startsWith("file/")).toList());
 		source.sendSystemMessage(Chat.info("Turning your resource packs off for the export. They'll come back on"
 				+ " afterwards, in the same order.")
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));
-		long reloading = System.currentTimeMillis();
-		client.reloadResourcePacks().thenRun(() -> client.execute(() -> {
-			LOGGER.info("[AOMC Visited] export: packs off, reload took {} ms", System.currentTimeMillis() - reloading);
+		ResourcePacks.turnOff(client, restore -> {
 			Component error = XaeroExport.start(client, only, upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT,
-					() -> restorePacks(client, original));
+					restore);
 			if (error != null) {
 				if (client.player != null) {
 					client.player.sendSystemMessage(error);
 				}
-				restorePacks(client, original);
+				restore.run();
 			}
-		}));
+		});
 		return 1;
-	}
-
-	private static void restorePacks(Minecraft client, List<String> original) {
-		PackRepository repository = client.getResourcePackRepository();
-		repository.setSelected(original);
-		long reloading = System.currentTimeMillis();
-		client.reloadResourcePacks().thenRun(() -> client.execute(() -> {
-			LOGGER.info("[AOMC Visited] export: packs back on, reload took {} ms", System.currentTimeMillis() - reloading);
-			boolean sameOrder = List.copyOf(repository.getSelectedIds()).equals(original);
-			if (!sameOrder) {
-				LOGGER.warn("Resource packs restored in a different order: {} instead of {}",
-						repository.getSelectedIds(), original);
-			}
-			Chat.send(client, sameOrder
-					? Chat.success("Your resource packs are back on.")
-					: Chat.warning("Your resource packs are back on, but their order may have changed: please check"
-							+ " Options > Resource Packs."));
-		}));
 	}
 }
