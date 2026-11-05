@@ -5,8 +5,8 @@ license = "All Rights Reserved"
 [[mods]]
 modId = "aomc_visited"
 version = "${version}"
-displayName = "AOMC Visited"
-description = "Remembers where you have been, so you can export those areas from Xaero's World Map for the community webmap."
+displayName = "AOMC Webmapper"
+description = "Remembers where you have been, then exports those areas from Xaero's World Map and uploads them to the community webmap."
 authors = "sunngoose"
 logoFile = "aomc_visited.png"
 

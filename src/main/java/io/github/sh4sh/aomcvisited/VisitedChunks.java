@@ -34,10 +34,10 @@ import java.util.stream.Stream;
  * main thread.
  */
 public final class VisitedChunks {
-	private static final String EXPORTS_HEADER = "# AOMC Visited: exports not yet marked as uploaded."
+	private static final String EXPORTS_HEADER = "# AOMC Webmapper: exports not yet marked as uploaded."
 			+ " 'next <n>' is the next export's number; then one export per line: its number, its record, and the"
 			+ " chunks (x,z) it contained whose map hasn't changed since";
-	private static final String HEADER = "# AOMC Visited: chunks Xaero's World Map wrote, as chunk x,z"
+	private static final String HEADER = "# AOMC Webmapper: chunks Xaero's World Map wrote, as chunk x,z"
 			+ " (multiply by 16 for block coordinates); x,z,c = new or changed since the player's map had it";
 	/** Xaero's layer number for the normal (not cave-mode) map. */
 	public static final int SURFACE_LAYER = Integer.MAX_VALUE;
