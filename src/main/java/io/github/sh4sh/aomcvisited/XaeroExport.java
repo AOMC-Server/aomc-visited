@@ -106,10 +106,10 @@ public final class XaeroExport {
 	enum Mode { EXPORT, NOT_FOR_WEBMAP, UPLOAD }
 
 	/**
-	 * Exports {@code record} alone, or else every dimension's records ({@code only}'s, if given). Records that would
-	 * go to the same webmap map are left out, with a button each, since uploading both would mix cave modes.
+	 * Records of the target that would go to the same webmap map are left out, with a button each, since uploading
+	 * both would mix cave modes. A target naming one record always exports it.
 	 */
-	static Component start(Minecraft client, String only, String record, Mode mode, Runnable whenDone) {
+	static Component start(Minecraft client, ExportTarget target, Mode mode, Runnable whenDone) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
 			return Chat.error("AOMC Visited is off. Turn it on with /visited on.");
 		}
@@ -123,18 +123,18 @@ public final class XaeroExport {
 		}
 		List<String> keys = new ArrayList<>();
 		MutableComponent choices = Component.empty();
-		if (record != null) {
-			if (AomcVisitedClient.VISITED.size(record) == 0) {
-				return Chat.error("Nothing recorded in " + VisitedChunks.displayName(record) + ".");
+		if (target.record() != null) {
+			if (AomcVisitedClient.VISITED.size(target.record()) == 0) {
+				return Chat.error("Nothing recorded in " + target.description() + ".");
 			}
-			keys.add(record);
+			keys.add(target.record());
 		} else {
 			List<String> dimensions = AomcVisitedClient.VISITED.dimensions();
-			if (only != null) {
-				if (!dimensions.contains(only)) {
-					return Chat.error("Nothing recorded in " + VisitedChunks.shortName(only) + " yet.");
+			if (target.dimension() != null) {
+				if (!dimensions.contains(target.dimension())) {
+					return Chat.error("Nothing recorded in " + target.description() + " yet.");
 				}
-				dimensions = List.of(only);
+				dimensions = List.of(target.dimension());
 			}
 			if (dimensions.isEmpty()) {
 				return Chat.error("Nothing recorded yet. If Xaero has been mapping and this stays empty, this version of"

@@ -30,7 +30,7 @@ final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
 	private static PendingExport pending;
 
-	private record PendingExport(String only, String record, XaeroExport.Mode mode) {
+	private record PendingExport(ExportTarget target, XaeroExport.Mode mode) {
 	}
 
 	private VisitedCommands() {
@@ -49,19 +49,19 @@ final class VisitedCommands {
 	}
 
 	private static LiteralArgumentBuilder<FabricClientCommandSource> exportCommand() {
-		return exportOptions(literal("export"), null, NO_RECORD)
-				.then(exportOptions(literal("overworld"), "minecraft:overworld", NO_RECORD))
-				.then(exportOptions(literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-				.then(exportOptions(literal("the_end"), "minecraft:the_end", NO_RECORD))
-				.then(literal("record").then(exportOptions(recordArgument(), null, VisitedCommands::record)));
+		return exportOptions(literal("export"), context -> ExportTarget.EVERYTHING)
+				.then(exportOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
+				.then(exportOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
+				.then(exportOptions(literal("the_end"), context -> ExportTarget.ofDimension("minecraft:the_end")))
+				.then(literal("record").then(exportOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))));
 	}
 
 	private static LiteralArgumentBuilder<FabricClientCommandSource> uploadCommand() {
-		return uploadOptions(literal("upload"), null, NO_RECORD)
-				.then(uploadOptions(literal("overworld"), "minecraft:overworld", NO_RECORD))
-				.then(uploadOptions(literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-				.then(uploadOptions(literal("the_end"), "minecraft:the_end", NO_RECORD))
-				.then(literal("record").then(uploadOptions(recordArgument(), null, VisitedCommands::record)))
+		return uploadOptions(literal("upload"), context -> ExportTarget.EVERYTHING)
+				.then(uploadOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
+				.then(uploadOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
+				.then(uploadOptions(literal("the_end"), context -> ExportTarget.ofDimension("minecraft:the_end")))
+				.then(literal("record").then(uploadOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))))
 				.then(confirmable(exportArgument(),
 						(context, confirmed) -> uploadExport(context.getSource(), exportNumber(context), confirmed)));
 	}
@@ -90,7 +90,7 @@ final class VisitedCommands {
 		if (pending != null) {
 			PendingExport export = pending;
 			pending = null;
-			Component error = XaeroExport.start(client, export.only(), export.record(), export.mode(), null);
+			Component error = XaeroExport.start(client, export.target(), export.mode(), null);
 			if (error != null) {
 				Chat.send(client, error);
 			}
@@ -225,12 +225,10 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	/** The record a command names: from its {@code record <name>} argument, or none. */
-	private interface RecordArgument {
-		String get(CommandContext<FabricClientCommandSource> context) throws CommandSyntaxException;
+	/** Reads the export target from the command, which may name a record. */
+	private interface TargetArgument {
+		ExportTarget get(CommandContext<FabricClientCommandSource> context) throws CommandSyntaxException;
 	}
-
-	private static final RecordArgument NO_RECORD = context -> null;
 
 	/** A command that asks first, and runs under {@code confirm}. */
 	private interface Confirmable {
@@ -268,32 +266,23 @@ final class VisitedCommands {
 	}
 
 	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S exportOptions(
-			S command, String only, RecordArgument record) {
-		return command.executes(context -> requestExport(context.getSource(), only, record.get(context), false))
+			S command, TargetArgument target) {
+		return command.executes(context -> requestExport(context.getSource(), target.get(context), false))
 				.then(literal("not-for-webmap").executes(context ->
-						requestExport(context.getSource(), only, record.get(context), true)))
+						requestExport(context.getSource(), target.get(context), true)))
 				.then(literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), only, record.get(context), false)));
+						exportWithoutPacks(context.getSource(), target.get(context), false)));
 	}
 
 	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S uploadOptions(
-			S command, String only, RecordArgument record) {
-		return confirmable(command, (context, confirmed) -> requestUpload(context.getSource(), only, record.get(context), confirmed))
+			S command, TargetArgument target) {
+		return confirmable(command, (context, confirmed) -> requestUpload(context.getSource(), target.get(context), confirmed))
 				.then(literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), only, record.get(context), true)));
+						exportWithoutPacks(context.getSource(), target.get(context), true)));
 	}
 
-	private static String target(String only, String record) {
-		return record != null ? " record " + VisitedChunks.shortName(record) : only != null ? " " + VisitedChunks.shortName(only) : "";
-	}
-
-	private static String what(String only, String record) {
-		return record != null ? VisitedChunks.displayName(record) : only != null ? VisitedChunks.shortName(only)
-				: "everything recorded";
-	}
-
-	/** {@code /visited upload [<dimension>]}: exports, then uploads to the webmap and marks as uploaded. */
-	private static int requestUpload(FabricClientCommandSource source, String only, String record, boolean confirmed) {
+	/** {@code /visited upload [<dimension>|record <name>]}: exports, then uploads to the webmap and marks as uploaded. */
+	private static int requestUpload(FabricClientCommandSource source, ExportTarget target, boolean confirmed) {
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
@@ -303,8 +292,8 @@ final class VisitedCommands {
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited upload" + target(only, record);
-		String what = what(only, record);
+		String command = "/visited upload" + target.commandSuffix();
+		String what = target.description();
 		if (!packs.isEmpty()) {
 			source.sendFeedback(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
 					+ " an upload. These are on:")
@@ -321,7 +310,7 @@ final class VisitedCommands {
 							"Export and upload " + what))));
 			return 1;
 		}
-		pending = new PendingExport(only, record, XaeroExport.Mode.UPLOAD);
+		pending = new PendingExport(target, XaeroExport.Mode.UPLOAD);
 		return 1;
 	}
 
@@ -354,13 +343,13 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static int requestExport(FabricClientCommandSource source, String only, String record, boolean withPacks) {
+	private static int requestExport(FabricClientCommandSource source, ExportTarget target, boolean withPacks) {
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited export" + target(only, record);
+		String command = "/visited export" + target.commandSuffix();
 		if (!packs.isEmpty() && !withPacks) {
 			source.sendFeedback(Chat.warning("Resource packs change the colours of the exported map. These are on:")
 					.append(Chat.line(String.join(", ", packs)))
@@ -374,11 +363,11 @@ final class VisitedCommands {
 											+ " its colours may be off"))));
 			return 0;
 		}
-		pending = new PendingExport(only, record, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
+		pending = new PendingExport(target, withPacks ? XaeroExport.Mode.NOT_FOR_WEBMAP : XaeroExport.Mode.EXPORT);
 		return 1;
 	}
 
-	private static int exportWithoutPacks(FabricClientCommandSource source, String only, String record, boolean upload) {
+	private static int exportWithoutPacks(FabricClientCommandSource source, ExportTarget target, boolean upload) {
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
@@ -394,7 +383,7 @@ final class VisitedCommands {
 		Minecraft client = Minecraft.getInstance();
 		XaeroExport.Mode mode = upload ? XaeroExport.Mode.UPLOAD : XaeroExport.Mode.EXPORT;
 		if (ResourcePacks.playerPacks(client).isEmpty()) {
-			pending = new PendingExport(only, record, mode);
+			pending = new PendingExport(target, mode);
 			return 1;
 		}
 		source.sendFeedback(Chat.info("Turning your resource packs off for the export. They'll come back on"
@@ -402,7 +391,7 @@ final class VisitedCommands {
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));
 		ResourcePacks.turnOff(client, restore -> {
-			Component error = XaeroExport.start(client, only, record, mode, restore);
+			Component error = XaeroExport.start(client, target, mode, restore);
 			if (error != null) {
 				Chat.send(client, error);
 				restore.run();
