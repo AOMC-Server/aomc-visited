@@ -13,7 +13,7 @@
   the export, since they may change Xaero's colours.
 - **Uploading** (`/visited upload [dimension]`, or `/visited upload <n>` from an export's [Upload] button,
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
-  (the webmap calls the Nether `nether`), then runs `/api/map/process` and reads its streamed progress. Only
+  (the webmap calls the Nether `nether`; an overworld export made in cave mode goes to `overworld_caves`), then runs `/api/map/process` and reads its streamed progress. Only
   if every image was accepted and processing finished without an error naming one of them is the export
   marked as uploaded. Nothing is sent unless the player asks. Exports made with resource packs on
   (`not-for-webmap`) are never offered for upload.
