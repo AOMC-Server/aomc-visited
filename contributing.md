@@ -1,12 +1,14 @@
 ## Functionality
 
 - **Recording** (`XaeroMapWriterMixin`, `VisitedChunks`): records chunks that Xaero's World Map writes on its 
-  map, per server and dimension (only dimensions named overworld, Nether and End are supported), marked "changed"
-  if its map data was updated. Saved once per minute and when leaving the server.
+  map, per server, dimension (only dimensions named overworld, Nether and End are supported) and cave mode, since
+  Xaero keeps a separate map for each cave mode (and each cave start in Layered mode). Marked "changed" if its map
+  data was updated. Saved once per minute and when leaving the server.
 - **Exporting** (`/visited export [overworld|the_nether|the_end] [without-packs|not-for-webmap]`, `XaeroExport`):
   runs Xaero's export for each dimension with records, in a few compact areas (`ExportAreas`). Trims the export by
   blacking out chunks not in records (`TileMasker`), and gathers the images in one folder. Works in any cave
-  mode: records and exports whichever map Xaero is showing, and the report names the cave mode if it's on.
+  mode: exports the map Xaero is showing, with that cave mode's record, and the report names the cave mode if
+  it's on. The overlay shows the same record.
   Offers to turn resource packs off for the export, since they may change Xaero's colours.
 - **Uploading** (`/visited upload [dimension]`, or `/visited upload <n>` from an export's [Upload] button,
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
@@ -30,6 +32,7 @@
 Under `<game dir>/aomc_visited/`:
 
 - `server/<address>/<namespace>/<dimension>.txt`: a record, one chunk `x,z` per line, `x,z,c` if changed.
+  Cave-mode records are `<dimension>/caves.txt` (Full) and `<dimension>/caves-y<height>.txt` (Layered).
 - `server/<address>/exports.txt`: the latest export of each dimension, until it's marked as uploaded.
 - `settings.properties`: whether the mod is on (`/visited on|off`) and whether the overlay is shown in Xaero.
 

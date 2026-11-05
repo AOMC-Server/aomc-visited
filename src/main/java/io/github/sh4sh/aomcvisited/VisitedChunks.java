@@ -29,7 +29,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
-/** Records are keyed by dimension id. Synchronized because the disconnect event may arrive off the main thread. */
+/**
+ * Records are keyed by dimension id, plus the cave mode for a cave-mode map ({@link #recordKey}). Synchronized
+ * because the disconnect event may arrive off the main thread.
+ */
 public final class VisitedChunks {
 	private static final String EXPORTS_HEADER = "# AOMC Visited: exports not yet marked as uploaded."
 			+ " 'next <n>' is the next export's number; then one export per line: its number, its record, and the"
@@ -38,6 +41,8 @@ public final class VisitedChunks {
 			+ " (multiply by 16 for block coordinates); x,z,c = new or changed since the player's map had it";
 	/** Xaero's layer number for the normal (not cave-mode) map. */
 	public static final int SURFACE_LAYER = Integer.MAX_VALUE;
+	/** Xaero's layer number for Full cave mode; Layered cave mode uses the cave start's y >> 4. */
+	public static final int FULL_CAVE_LAYER = Integer.MIN_VALUE;
 
 	private final Path root;
 	private String server;
@@ -73,7 +78,7 @@ public final class VisitedChunks {
 	private static final Set<String> WEBMAP_DIMENSIONS =
 			Set.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end");
 
-	public synchronized boolean mapped(ResourceKey<Level> dimension, int x, int z, boolean differs) {
+	public synchronized boolean mapped(ResourceKey<Level> dimension, int layer, int x, int z, boolean differs) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
 			return false;
 		}
@@ -84,10 +89,11 @@ public final class VisitedChunks {
 			}
 			open(serverKey(client));
 		}
-		String key = dimension.location().toString();
-		if (!WEBMAP_DIMENSIONS.contains(key)) {
+		String id = dimension.location().toString();
+		if (!WEBMAP_DIMENSIONS.contains(id)) {
 			return false;
 		}
+		String key = recordKey(id, layer);
 		long pos = ChunkPos.asLong(x, z);
 		if (differs) {
 			lastWrite.computeIfAbsent(key, k -> new Long2LongOpenHashMap()).put(pos, ++writes);
@@ -174,7 +180,7 @@ public final class VisitedChunks {
 			if (key == null) {
 				continue;
 			}
-			if (WEBMAP_DIMENSIONS.contains(key)) {
+			if (WEBMAP_DIMENSIONS.contains(dimensionOf(key))) {
 				files.add(file);
 			} else {
 				deleteQuietly(file);
@@ -267,8 +273,13 @@ public final class VisitedChunks {
 		return server;
 	}
 
+	/** Forgets every record of the dimension, in every cave mode. */
 	public synchronized int clear(ResourceKey<Level> dimension) {
-		return clear(dimension.location().toString());
+		int forgotten = 0;
+		for (String key : recordKeys(dimension.location().toString())) {
+			forgotten += clear(key);
+		}
+		return forgotten;
 	}
 
 	public synchronized int clearAll() {
@@ -352,9 +363,16 @@ public final class VisitedChunks {
 		return forgotten;
 	}
 
+	/** The dimensions with something recorded, in any cave mode. */
 	public synchronized List<String> dimensions() {
 		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
-				.map(Map.Entry::getKey).toList();
+				.map(record -> dimensionOf(record.getKey())).distinct().toList();
+	}
+
+	/** The dimension's records with something in them, one per cave mode. */
+	public synchronized List<String> recordKeys(String dimension) {
+		return records.entrySet().stream().filter(record -> !record.getValue().isEmpty())
+				.map(Map.Entry::getKey).filter(key -> dimensionOf(key).equals(dimension)).toList();
 	}
 
 	public synchronized LongOpenHashSet snapshot(String key) {
@@ -363,8 +381,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int count(ResourceKey<Level> dimension) {
-		LongOpenHashSet chunks = records.get(dimension.location().toString());
-		return chunks == null ? 0 : chunks.size();
+		return recordKeys(dimension.location().toString()).stream().mapToInt(key -> records.get(key).size()).sum();
 	}
 
 	public synchronized Map<String, Integer> counts() {
@@ -494,8 +511,38 @@ public final class VisitedChunks {
 		}
 	}
 
+	/**
+	 * Xaero keeps a separate map for each cave mode, and for each cave start in Layered mode, so each gets its own
+	 * record: what Xaero drew in one never says the others are up to date.
+	 */
+	public static String recordKey(String dimension, int layer) {
+		if (layer == SURFACE_LAYER) {
+			return dimension;
+		}
+		return dimension + (layer == FULL_CAVE_LAYER ? "/caves" : "/caves-y" + layer * 16);
+	}
+
+	public static String dimensionOf(String key) {
+		int slash = key.indexOf('/');
+		return slash < 0 ? key : key.substring(0, slash);
+	}
+
+	public static boolean isCaveMode(String key) {
+		return key.indexOf('/') >= 0;
+	}
+
+	/** How the cave mode reads in chat, or null with cave mode off. */
+	public static String caveModeName(String key) {
+		if (!isCaveMode(key)) {
+			return null;
+		}
+		String mode = key.substring(key.indexOf('/') + 1);
+		return mode.equals("caves") ? "Full cave mode" : "Layered cave mode from about y " + mode.substring("caves-y".length());
+	}
+
+	/** Also used for folder names, so a cave-mode record's slash becomes a dash. */
 	public static String shortName(String key) {
-		return key.startsWith("minecraft:") ? key.substring("minecraft:".length()) : key;
+		return (key.startsWith("minecraft:") ? key.substring("minecraft:".length()) : key).replace('/', '-');
 	}
 
 	private static String keyFor(Path dir, Path file) {

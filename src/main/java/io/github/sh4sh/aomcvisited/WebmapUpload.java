@@ -33,11 +33,11 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: its record key, whether Xaero was in cave mode, its export number, and its cleaned images. */
-	record Dimension(String key, boolean caveMode, int export, List<Path> images) {
+	/** One dimension of an export: its record key, its export number, and its cleaned images. */
+	record Dimension(String key, int export, List<Path> images) {
 		/** The webmap's name for this map, or null if it has none. */
 		String map() {
-			return webmapName(key, caveMode);
+			return webmapName(key);
 		}
 	}
 
@@ -56,10 +56,10 @@ final class WebmapUpload {
 		return running;
 	}
 
-	/** The webmap's name for a dimension's map, or null if it has none. Only the overworld has a separate cave map. */
-	static String webmapName(String key, boolean caveMode) {
-		return switch (key) {
-			case "minecraft:overworld" -> caveMode ? "overworld_caves" : "overworld";
+	/** The webmap's name for a record's map, or null if it has none. Only the overworld has a separate cave map. */
+	static String webmapName(String key) {
+		return switch (VisitedChunks.dimensionOf(key)) {
+			case "minecraft:overworld" -> VisitedChunks.isCaveMode(key) ? "overworld_caves" : "overworld";
 			case "minecraft:the_nether" -> "nether";
 			case "minecraft:the_end" -> "the_end";
 			default -> null;

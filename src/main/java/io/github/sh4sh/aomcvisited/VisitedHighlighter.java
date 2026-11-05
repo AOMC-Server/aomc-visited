@@ -54,6 +54,8 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		});
 	}
 
+	private static int shownLayer = VisitedChunks.SURFACE_LAYER;
+
 	static void refreshAll() {
 		MapProcessor processor = processor();
 		if (processor != null && processor.getMapWorld() != null) {
@@ -65,12 +67,22 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 	static void refreshChanged() {
 		Map<String, LongOpenHashSet> changed = AomcVisitedClient.VISITED.takeChangedRegions();
 		MapProcessor processor = processor();
-		if (changed.isEmpty() || processor == null || processor.getMapWorld() == null) {
+		if (processor == null || processor.getMapWorld() == null) {
+			return;
+		}
+		// Xaero's cached hashes are per region, not per cave mode, so a switch must redraw every region.
+		int layer = processor.getCurrentCaveLayer();
+		if (layer != shownLayer) {
+			shownLayer = layer;
+			processor.getMapWorld().clearAllCachedHighlightHashes();
+			return;
+		}
+		if (changed.isEmpty()) {
 			return;
 		}
 		changed.forEach((key, regions) -> {
 			MapDimension mapDimension = processor.getMapWorld()
-					.getDimension(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(key)));
+					.getDimension(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(VisitedChunks.dimensionOf(key))));
 			if (mapDimension != null) {
 				regions.forEach(region -> mapDimension.getHighlightHandler()
 						.clearCachedHash(ChunkPos.getX(region), ChunkPos.getZ(region)));
@@ -87,8 +99,11 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		return !exportScreenOpen && AomcVisitedClient.SETTINGS.enabled() && AomcVisitedClient.SETTINGS.showOnMap();
 	}
 
+	/** The record of the cave mode Xaero is showing, which is the map the next export takes. */
 	private static String key(ResourceKey<Level> dimension) {
-		return dimension.location().toString();
+		MapProcessor processor = processor();
+		return VisitedChunks.recordKey(dimension.location().toString(),
+				processor == null ? VisitedChunks.SURFACE_LAYER : processor.getCurrentCaveLayer());
 	}
 
 	private static boolean recorded(ResourceKey<Level> dimension, int x, int z) {
