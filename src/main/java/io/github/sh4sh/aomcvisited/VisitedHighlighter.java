@@ -96,11 +96,18 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		return !exportScreenOpen && AomcVisitedClient.SETTINGS.enabled() && AomcVisitedClient.SETTINGS.showOnMap();
 	}
 
+	private static ResourceKey<Level> keyDimension;
+	private static int keyLayer;
+	private static String key;
+
+	/** Called several times per chunk while Xaero draws, so the last key is reused. */
 	private static String key(ResourceKey<Level> dimension) {
-		MapProcessor processor = processor();
-		String id = dimension.identifier().toString();
-		return VisitedChunks.recordKey(id, processor == null || VisitedChunks.SURFACE_ONLY.contains(id)
-				? VisitedChunks.SURFACE_LAYER : processor.getCurrentCaveLayer());
+		if (dimension != keyDimension || shownLayer != keyLayer) {
+			keyDimension = dimension;
+			keyLayer = shownLayer;
+			key = VisitedChunks.recordKey(dimension.identifier().toString(), shownLayer);
+		}
+		return key;
 	}
 
 	private static boolean recorded(ResourceKey<Level> dimension, int x, int z) {
