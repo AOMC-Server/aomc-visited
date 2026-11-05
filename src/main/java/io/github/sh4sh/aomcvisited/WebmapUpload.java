@@ -18,12 +18,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = "create.diorite.xyz";
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
+	/** Record folders of the survival server the webmap shows; its creative server is on the same host. */
+	private static final Set<String> SERVERS = Set.of("server/create.diorite.xyz", "server/gw.algot.net_25037");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 	private static final String USER_AGENT = "AOMC Visited/" + ModList.get()
 			.getModContainerById(AomcVisitedClient.MOD_ID).map(mod -> mod.getModInfo().getVersion().toString())
@@ -33,8 +36,11 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: its record key, its export number, and its cleaned images. */
-	record Dimension(String key, int export, List<Path> images) {
+	/** One dimension of an export: the server it was recorded on, its record key, its export number, and its cleaned images. */
+	record Dimension(String server, String key, int export, List<Path> images) {
+		String map() {
+			return webmapName(key);
+		}
 	}
 
 	private WebmapUpload() {
@@ -48,14 +54,28 @@ final class WebmapUpload {
 		return EXPORTS.get(number);
 	}
 
+	static boolean forWebmap(String server) {
+		return server != null && SERVERS.contains(server);
+	}
+
+	/** Why exports from this server can't be uploaded, or null if they can. */
+	static Component refusal(String server) {
+		if (forWebmap(server)) {
+			return null;
+		}
+		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
+		return Chat.error("Only maps of the " + HOST + " server go to its webmap. You're on " + name
+				+ ", so nothing is uploaded from here.");
+	}
+
 	static boolean running() {
 		return running;
 	}
 
-	/** The webmap's name for a dimension, or null if it has no map for it. */
+	/** Null if the webmap has no map for it. */
 	static String webmapName(String key) {
-		return switch (key) {
-			case "minecraft:overworld" -> "overworld";
+		return switch (VisitedChunks.dimensionOf(key)) {
+			case "minecraft:overworld" -> VisitedChunks.isCaveMode(key) ? "overworld_caves" : "overworld";
 			case "minecraft:the_nether" -> "nether";
 			case "minecraft:the_end" -> "the_end";
 			default -> null;
@@ -67,6 +87,13 @@ final class WebmapUpload {
 	 * dimension whose images were all accepted and processed as uploaded. Runs in the background.
 	 */
 	static void start(Minecraft client, List<Dimension> dimensions) {
+		for (Dimension dimension : dimensions) {
+			Component refusal = refusal(dimension.server());
+			if (refusal != null) {
+				Chat.send(client, refusal);
+				return;
+			}
+		}
 		running = true;
 		Thread.ofVirtual().name("AOMC Visited upload").start(() -> {
 			try {
@@ -91,7 +118,7 @@ final class WebmapUpload {
 		for (Dimension dimension : dimensions) {
 			for (Path image : dimension.images()) {
 				status(client, "uploading " + (++done) + " of " + total);
-				String problem = uploadImage(webmapName(dimension.key()), image);
+				String problem = uploadImage(dimension.map(), image);
 				if (problem != null) {
 					problems.put(dimension, image.getFileName() + ": " + problem);
 					break;
@@ -168,7 +195,7 @@ final class WebmapUpload {
 				? Chat.success("Uploaded to " + HOST + " and marked as uploaded.")
 				: Chat.warning("The upload didn't fully succeed. Only what's listed as marked was marked as uploaded.");
 		for (Dimension dimension : dimensions) {
-			String name = VisitedChunks.shortName(dimension.key());
+			String name = dimension.map() != null ? dimension.map() : VisitedChunks.shortName(dimension.key());
 			String problem = problems.get(dimension);
 			if (problem != null) {
 				report.append(Chat.line(Component.literal(name + ": not marked as uploaded, " + problem)

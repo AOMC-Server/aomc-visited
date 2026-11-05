@@ -54,7 +54,6 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
 
-      # Pre-releases, and never "Latest": that stays main's Fabric release for the main server.
       - name: Release a new version
         if: github.ref == 'refs/heads/neoforge-1.21.1'
         env:
@@ -63,5 +62,5 @@ jobs:
           version=$(grep '^version=' gradle.properties | cut -d= -f2)
           if ! gh release view "v$version" >/dev/null 2>&1; then
             gh release create "v$version" "build/libs/aomc-visited-$version.jar" \
-              --target "$GITHUB_SHA" --title "$version" --generate-notes --prerelease --latest=false
+              --target "$GITHUB_SHA" --title "$version" --generate-notes
           fi

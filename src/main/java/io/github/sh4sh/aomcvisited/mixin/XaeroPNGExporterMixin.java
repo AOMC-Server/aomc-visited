@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import xaero.lib.common.config.option.ConfigOption;
 import xaero.lib.common.config.single.SingleConfigManager;
+import xaero.map.MapProcessor;
 import xaero.map.config.primary.option.WorldMapPrimaryClientConfigOptions;
 import xaero.map.file.export.PNGExporter;
 
@@ -25,5 +26,10 @@ public abstract class XaeroPNGExporterMixin {
 			}
 		}
 		return original.call(manager, option);
+	}
+
+	@WrapOperation(method = "export", at = @At(value = "INVOKE", target = "Lxaero/map/MapProcessor;getCurrentCaveLayer()I"))
+	private int aomcVisited$recordedLayer(MapProcessor processor, Operation<Integer> original) {
+		return XaeroExport.active() ? XaeroExport.layer() : original.call(processor);
 	}
 }
