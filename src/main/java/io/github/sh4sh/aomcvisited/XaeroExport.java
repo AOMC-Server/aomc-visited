@@ -493,11 +493,12 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(key, number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(AomcVisitedClient.VISITED.server(), key,
+					number, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
-				if (job.mode == Mode.EXPORT) {
+				if (job.mode == Mode.EXPORT && WebmapUpload.forWebmap(upload.server())) {
 					WebmapUpload.remember(upload);
 					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
 							"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST

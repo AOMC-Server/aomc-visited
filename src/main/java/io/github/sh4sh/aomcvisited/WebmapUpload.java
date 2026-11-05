@@ -18,12 +18,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = "create.diorite.xyz";
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
+	/** Record folders of the survival server the webmap shows; its creative server is on the same host. */
+	private static final Set<String> SERVERS = Set.of("server/create.diorite.xyz", "server/gw.algot.net_25037");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 	private static final String USER_AGENT = "AOMC Visited/" + ModList.get()
 			.getModContainerById(AomcVisitedClient.MOD_ID).map(mod -> mod.getModInfo().getVersion().toString())
@@ -33,8 +36,8 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: its record key, its export number, and its cleaned images. */
-	record Dimension(String key, int export, List<Path> images) {
+	/** One dimension of an export: the server it was recorded on, its record key, its export number, and its cleaned images. */
+	record Dimension(String server, String key, int export, List<Path> images) {
 	}
 
 	private WebmapUpload() {
@@ -46,6 +49,20 @@ final class WebmapUpload {
 
 	static Dimension export(int number) {
 		return EXPORTS.get(number);
+	}
+
+	static boolean forWebmap(String server) {
+		return server != null && SERVERS.contains(server);
+	}
+
+	/** Why exports from this server can't be uploaded, or null if they can. */
+	static Component refusal(String server) {
+		if (forWebmap(server)) {
+			return null;
+		}
+		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
+		return Chat.error("Only maps of the " + HOST + " server go to its webmap. You're on " + name
+				+ ", so nothing is uploaded from here.");
 	}
 
 	static boolean running() {
@@ -67,6 +84,13 @@ final class WebmapUpload {
 	 * dimension whose images were all accepted and processed as uploaded. Runs in the background.
 	 */
 	static void start(Minecraft client, List<Dimension> dimensions) {
+		for (Dimension dimension : dimensions) {
+			Component refusal = refusal(dimension.server());
+			if (refusal != null) {
+				Chat.send(client, refusal);
+				return;
+			}
+		}
 		running = true;
 		Thread.ofVirtual().name("AOMC Visited upload").start(() -> {
 			try {

@@ -11,7 +11,8 @@
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
   (the webmap calls the Nether `nether`), then runs `/api/map/process` and reads its streamed progress. Only
   if every image was accepted and processing finished without an error naming one of them is the export
-  marked as uploaded. Nothing is sent unless the player asks. Exports made with resource packs on
+  marked as uploaded. Nothing is sent unless the player asks. Only exports recorded on the survival server (`create.diorite.xyz` or
+  `gw.algot.net:25037`, `WebmapUpload.SERVERS`) can be uploaded: the creative server shares the host. Exports made with resource packs on
   (`not-for-webmap`) are never offered for upload. A unique prefix on uploaded filenames could tell our
   images apart in the shared processing log, if errors ever get mixed up.
 - **Mark as uploaded** (`/visited mark-uploaded <n>`, a button on the export message): forgets the chunks that

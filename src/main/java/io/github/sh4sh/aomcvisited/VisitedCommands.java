@@ -195,6 +195,11 @@ final class VisitedCommands {
 			source.sendSystemMessage(Chat.error("An upload is already running."));
 			return 0;
 		}
+		Component refusal = WebmapUpload.refusal(VISITED.server());
+		if (refusal != null) {
+			source.sendSystemMessage(refusal);
+			return 0;
+		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited upload" + (only == null ? "" : " " + VisitedChunks.shortName(only));
 		String what = only == null ? "everything recorded" : VisitedChunks.shortName(only);
