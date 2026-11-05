@@ -276,7 +276,8 @@ final class VisitedCommands {
 
 	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S uploadOptions(
 			S command, TargetArgument target) {
-		return confirmable(command, (context, confirmed) -> requestUpload(context.getSource(), target.get(context), confirmed))
+		return confirmable(command,
+				(context, confirmed) -> requestUpload(context.getSource(), target.get(context), confirmed))
 				.then(literal("without-packs").executes(context ->
 						exportWithoutPacks(context.getSource(), target.get(context), true)));
 	}

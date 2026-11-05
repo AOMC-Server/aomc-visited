@@ -36,6 +36,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
+
 public final class XaeroExport {
 	private static final Pattern EXPORT_FOLDER = Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}\\.\\d{2}\\.\\d{2}");
 	private static final Pattern SINGLE_IMAGE =
@@ -124,12 +126,12 @@ public final class XaeroExport {
 		List<String> keys = new ArrayList<>();
 		MutableComponent choices = Component.empty();
 		if (target.record() != null) {
-			if (AomcVisitedClient.VISITED.size(target.record()) == 0) {
+			if (VISITED.size(target.record()) == 0) {
 				return Chat.error("Nothing recorded in " + target.description() + ".");
 			}
 			keys.add(target.record());
 		} else {
-			List<String> dimensions = AomcVisitedClient.VISITED.dimensions();
+			List<String> dimensions = VISITED.dimensions();
 			if (target.dimension() != null) {
 				if (!dimensions.contains(target.dimension())) {
 					return Chat.error("Nothing recorded in " + target.description() + " yet.");
@@ -158,11 +160,12 @@ public final class XaeroExport {
 		ResourceKey<Level> showing = processor.getMapWorld().getCurrentDimensionId();
 		boolean switches = keys.stream().map(VisitedChunks::dimensionOf).distinct().count() > 1 || showing == null
 				|| !VisitedChunks.dimensionOf(keys.getFirst()).equals(showing.identifier().toString());
+		String switching = switches ? " Xaero's map switches dimension while it works, and the" : " The";
+		String freeze = tiles > LARGE_EXPORT_TILES
+				? " game may freeze for a while: this is a large export, up to " + tiles + " images."
+				: " game may freeze for a few seconds.";
 		Chat.send(client, Chat.info("Exporting " + String.join(", ", names) + ". Progress shows above your hotbar."
-				+ (switches ? " Xaero's map switches dimension while it works, and the" : " The")
-				+ (tiles > LARGE_EXPORT_TILES
-						? " game may freeze for a while: this is a large export, up to " + tiles + " images."
-						: " game may freeze for a few seconds.")));
+				+ switching + freeze));
 		log("{}, up to {} images", String.join(", ", names), tiles);
 		job = new Job(client, processor, keys, mode, whenDone);
 		job.report.append(choices);
@@ -174,7 +177,7 @@ public final class XaeroExport {
 	/** The dimension's records, grouped by the webmap map they go to (records with no map share "null"). */
 	private static Map<String, List<String>> byMap(String dimension) {
 		Map<String, List<String>> byMap = new LinkedHashMap<>();
-		for (String key : AomcVisitedClient.VISITED.recordKeys(dimension)) {
+		for (String key : VISITED.recordKeys(dimension)) {
 			byMap.computeIfAbsent(String.valueOf(WebmapUpload.webmapName(key)), k -> new ArrayList<>()).add(key);
 		}
 		return byMap;
@@ -190,15 +193,17 @@ public final class XaeroExport {
 
 	private static Component choice(String map, List<String> records, Mode mode) {
 		List<String> bySize = records.stream()
-				.sorted(Comparator.comparingInt(AomcVisitedClient.VISITED::size).reversed()).toList();
+				.sorted(Comparator.comparingInt(VISITED::size).reversed()).toList();
+		String verb = mode == Mode.UPLOAD ? "upload" : "export";
 		String suffix = mode == Mode.NOT_FOR_WEBMAP ? " not-for-webmap" : "";
 		List<Component> buttons = new ArrayList<>();
 		for (String key : bySize.subList(0, Math.min(CHOICE_BUTTONS, bySize.size()))) {
 			String caves = VisitedChunks.caveModeName(key);
-			buttons.add(Chat.button((caves == null ? "cave mode off" : caves) + ": "
-					+ AomcVisitedClient.VISITED.size(key) + " chunks", ChatFormatting.GREEN,
-					VisitedCommands.recordCommand(mode == Mode.UPLOAD ? "upload" : "export", key) + suffix, (mode == Mode.UPLOAD ? "Export and upload " : "Export ")
-							+ "only what was recorded in " + VisitedChunks.displayName(key)));
+			String label = (caves == null ? "cave mode off" : caves) + ": " + VISITED.size(key) + " chunks";
+			String command = VisitedCommands.recordCommand(verb, key) + suffix;
+			String hover = (mode == Mode.UPLOAD ? "Export and upload" : "Export") + " only what was recorded in "
+					+ VisitedChunks.displayName(key);
+			buttons.add(Chat.button(label, ChatFormatting.GREEN, command, hover));
 		}
 		int more = bySize.size() - buttons.size();
 		// /visited's buttons make webmap exports, so they'd lose not-for-webmap.
@@ -207,9 +212,11 @@ public final class XaeroExport {
 			buttons.add(Chat.button(more + " more", ChatFormatting.AQUA, "/visited", "Lists every record, each with its"
 					+ " own buttons"));
 		}
-		MutableComponent line = Chat.line(Component.literal(VisitedChunks.shortName(VisitedChunks.dimensionOf(records.getFirst()))
-				+ ": recorded in " + records.size() + " cave modes, which all go to the " + map + " map. Pick one"
-				+ (more > 0 && !moreButton ? " (" + more + " more: see /visited):" : ":")).withStyle(ChatFormatting.GOLD));
+		String dimension = VisitedChunks.shortName(VisitedChunks.dimensionOf(records.getFirst()));
+		String unlisted = more > 0 && !moreButton ? " (" + more + " more: see /visited)" : "";
+		MutableComponent line = Chat.line(Component.literal(dimension + ": recorded in " + records.size()
+				+ " cave modes, which all go to the " + map + " map. Pick one" + unlisted + ":")
+				.withStyle(ChatFormatting.GOLD));
 		return line.append(Chat.buttons(buttons.toArray(Component[]::new)));
 	}
 
@@ -228,7 +235,7 @@ public final class XaeroExport {
 		private final Mode mode;
 		private final Runnable whenDone;
 		private final ResourceKey<Level> previousCustom;
-		private final long writesAtStart = AomcVisitedClient.VISITED.writes();
+		private final long writesAtStart = VISITED.writes();
 		private final MutableComponent report = Component.empty();
 		private final long started = System.currentTimeMillis();
 		private final List<Component> buttons = new ArrayList<>();
@@ -351,7 +358,7 @@ public final class XaeroExport {
 				processor.checkForWorldUpdate();
 			}
 			job = null;
-			AomcVisitedClient.VISITED.save();
+			VISITED.save();
 			MutableComponent message;
 			String shown = root == null ? "" : root.getParent().getFileName() + "/" + root.getFileName();
 			if (anyImages && mode == Mode.UPLOAD) {
@@ -489,7 +496,7 @@ public final class XaeroExport {
 		 */
 		private Component clean(Path written, ExportAreas.Box area) {
 			// Xaero's writer runs on this thread, so this is exactly what the export rendered.
-			LongOpenHashSet chunks = AomcVisitedClient.VISITED.snapshot(key);
+			LongOpenHashSet chunks = VISITED.snapshot(key);
 			for (LongIterator it = chunks.iterator(); it.hasNext(); ) {
 				long pos = it.nextLong();
 				int x = ChunkPos.getX(pos), z = ChunkPos.getZ(pos);
@@ -504,9 +511,10 @@ public final class XaeroExport {
 				if (job.root == null) {
 					Path mapExports = tiles ? written.getParent() : written;
 					String dimension = job.keys.size() == 1 ? VisitedChunks.shortName(key) + "-" : "";
-					String server = AomcVisitedClient.VISITED.server();
-					job.root = mapExports.resolve(server == null ? "unknown"
-							: server.substring(server.indexOf('/') + 1)).resolve("aomc-visited-" + dimension + LocalDateTime.now().format(FOLDER_TIME));
+					String server = VISITED.server();
+					String serverFolder = server == null ? "unknown" : server.substring(server.indexOf('/') + 1);
+					String exportFolder = "aomc-visited-" + dimension + LocalDateTime.now().format(FOLDER_TIME);
+					job.root = mapExports.resolve(serverFolder).resolve(exportFolder);
 				}
 				if (folder == null) {
 					folder = job.keys.size() == 1 ? job.root : job.root.resolve(VisitedChunks.shortName(key));
@@ -563,11 +571,11 @@ public final class XaeroExport {
 			int changed = 0;
 			for (LongIterator it = exported.iterator(); it.hasNext(); ) {
 				long pos = it.nextLong();
-				if (AomcVisitedClient.VISITED.isChanged(key, ChunkPos.getX(pos), ChunkPos.getZ(pos))) {
+				if (VISITED.isChanged(key, ChunkPos.getX(pos), ChunkPos.getZ(pos))) {
 					changed++;
 				}
 			}
-			int number = AomcVisitedClient.VISITED.rememberExport(key, exported, job.writesAtStart);
+			int number = VISITED.rememberExport(key, exported, job.writesAtStart);
 			List<Path> images;
 			try (Stream<Path> files = Files.list(folder)) {
 				images = files.filter(p -> p.toString().endsWith(".png")).sorted().toList();
@@ -592,16 +600,17 @@ public final class XaeroExport {
 			}
 			List<String> others = sameMap(key);
 			if (!others.isEmpty()) {
-				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED, "/visited clear others "
-						+ VisitedChunks.shortName(key), "Forget what else was recorded for the " + WebmapUpload.webmapName(key)
-						+ " map, in " + VisitedChunks.displayNames(others)
-						+ " (asks to confirm first)"));
+				String hover = "Forget what else was recorded for the " + WebmapUpload.webmapName(key) + " map, in "
+						+ VisitedChunks.displayNames(others) + " (asks to confirm first)";
+				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED,
+						"/visited clear others " + VisitedChunks.shortName(key), hover));
 			}
-			String name = VisitedChunks.displayName(key) + (job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)");
-			job.line(Component.literal(name + ": " + total.chunksKept() + " chunks (" + changed + " new or changed), "
-					+ left + (left == 1 ? " image" : " images")
-					+ (total.chunksBlackedOut() > 0 ? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "")
-					+ "."));
+			String folderNote = job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)";
+			String imageCount = left + (left == 1 ? " image" : " images");
+			String blackedOut = total.chunksBlackedOut() > 0
+					? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "";
+			job.line(Component.literal(VisitedChunks.displayName(key) + folderNote + ": " + total.chunksKept()
+					+ " chunks (" + changed + " new or changed), " + imageCount + blackedOut + "."));
 			job.nextDimension();
 		}
 
@@ -627,7 +636,7 @@ public final class XaeroExport {
 	}
 
 	private static List<ExportAreas.Box> plan(String key) {
-		LongOpenHashSet chunks = AomcVisitedClient.VISITED.snapshot(key);
+		LongOpenHashSet chunks = VISITED.snapshot(key);
 		List<int[]> list = new ArrayList<>(chunks.size());
 		for (LongIterator it = chunks.iterator(); it.hasNext(); ) {
 			long pos = it.nextLong();
