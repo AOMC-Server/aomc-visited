@@ -274,8 +274,9 @@ public final class XaeroExport {
 			job = null;
 			AomcVisitedClient.VISITED.save();
 			MutableComponent message;
+			String shown = root == null ? "" : root.getParent().getFileName() + "/" + root.getFileName();
 			if (anyImages && mode == Mode.UPLOAD) {
-				message = Chat.info("Export cleaned: map exports/" + root.getFileName() + ". Uploading it to"
+				message = Chat.info("Export cleaned: map exports/" + shown + ". Uploading it to"
 						+ " " + WebmapUpload.HOST + " now. It's marked as uploaded once the webmap has processed it.");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
 				if (!uploads.isEmpty()) {
@@ -283,7 +284,7 @@ public final class XaeroExport {
 				}
 			} else if (anyImages) {
 				Blaze3D.openPath(root);
-				message = Chat.success("Export cleaned and ready to upload: map exports/" + root.getFileName()
+				message = Chat.success("Export cleaned and ready to upload: map exports/" + shown
 						+ (keys.size() == 1 ? ". Upload it to the " + VisitedChunks.shortName(keys.getFirst()) + " map."
 								: ". Upload each dimension's folder to its own map."));
 				buttons.addFirst(Chat.openButton("Open folder", root));
@@ -424,7 +425,10 @@ public final class XaeroExport {
 				if (job.root == null) {
 					Path mapExports = tiles ? written.getParent() : written;
 					String dimension = job.keys.size() == 1 ? VisitedChunks.shortName(key) + "-" : "";
-					job.root = mapExports.resolve("aomc-visited-" + dimension + LocalDateTime.now().format(FOLDER_TIME));
+					String server = AomcVisitedClient.VISITED.server();
+					// Grouped by server, like the records, so one server's exports can't be mistaken for another's.
+					job.root = mapExports.resolve(server == null ? "unknown"
+							: server.substring(server.indexOf('/') + 1)).resolve("aomc-visited-" + dimension + LocalDateTime.now().format(FOLDER_TIME));
 				}
 				if (folder == null) {
 					folder = job.keys.size() == 1 ? job.root : job.root.resolve(VisitedChunks.shortName(key));

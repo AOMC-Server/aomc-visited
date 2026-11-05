@@ -5,7 +5,8 @@
   if its map data was updated. Saved once per minute and when leaving the server.
 - **Exporting** (`/visited export [overworld|the_nether|the_end] [without-packs|not-for-webmap]`, `XaeroExport`):
   runs Xaero's export for each dimension with records, in a few compact areas (`ExportAreas`). Trims the export by
-  blacking out chunks not in records (`TileMasker`), and gathers the images in one folder. Refuses while in
+  blacking out chunks not in records (`TileMasker`), and gathers the images in one folder,
+  `map exports/<server>/aomc-visited-…`, named like the server's record folder. Refuses while in
   cave mode. Offers to turn resource packs off for the export, since they may change Xaero's colours.
 - **Uploading** (`/visited upload [dimension]`, or `/visited upload <n>` from an export's [Upload] button,
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
