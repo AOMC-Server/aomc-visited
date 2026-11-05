@@ -8,6 +8,7 @@ version = "${version}"
 displayName = "AOMC Visited"
 description = "Remembers where you have been, so you can export those areas from Xaero's World Map for the community webmap."
 authors = "sunngoose"
+logoFile = "aomc_visited.png"
 
 [[mixins]]
 config = "aomc_visited.mixins.json"
@@ -28,7 +29,7 @@ side = "CLIENT"
 
 [[dependencies.aomc_visited]]
 modId = "xaeroworldmap"
-type = "optional"
-versionRange = "*"
+type = "required"
+versionRange = "[${xaero_worldmap_version},)"
 ordering = "AFTER"
 side = "CLIENT"

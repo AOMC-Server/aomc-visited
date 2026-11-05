@@ -56,7 +56,8 @@ dependencies {
 }
 
 processResources {
-	def props = [version: project.version, minecraft_version: project.minecraft_version]
+	def props = [version: project.version, minecraft_version: project.minecraft_version,
+			xaero_worldmap_version: project.xaero_worldmap_version]
 	inputs.properties props
 
 	filesMatching("META-INF/neoforge.mods.toml") {
