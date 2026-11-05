@@ -4,11 +4,11 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -23,6 +23,8 @@ import java.util.Map;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.SETTINGS;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
@@ -35,44 +37,53 @@ final class VisitedCommands {
 	}
 
 	static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-		dispatcher.register(
-			ClientCommands.literal("visited")
-					.executes(context -> showCounts(context.getSource()))
-					.then(exportCommand(ClientCommands.literal("export"), null, NO_RECORD)
-							.then(exportCommand(ClientCommands.literal("overworld"), "minecraft:overworld", NO_RECORD))
-							.then(exportCommand(ClientCommands.literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-							.then(exportCommand(ClientCommands.literal("the_end"), "minecraft:the_end", NO_RECORD))
-							.then(ClientCommands.literal("record").then(exportCommand(recordArgument(), null, VisitedCommands::record))))
-					.then(ClientCommands.literal("clear")
-							.executes(context -> clear(context.getSource(), false))
-							.then(ClientCommands.literal("confirm").executes(context -> clear(context.getSource(), true)))
-							.then(ClientCommands.literal("all")
-									.executes(context -> clearAll(context.getSource(), false))
-									.then(ClientCommands.literal("confirm").executes(context -> clearAll(context.getSource(), true))))
-							.then(ClientCommands.literal("others").then(recordArgument()
-									.executes(context -> clearOthers(context.getSource(), record(context), false))
-									.then(ClientCommands.literal("confirm").executes(context ->
-											clearOthers(context.getSource(), record(context), true))))))
-					.then(uploadCommand(ClientCommands.literal("upload"), null, NO_RECORD)
-							.then(uploadCommand(ClientCommands.literal("overworld"), "minecraft:overworld", NO_RECORD))
-							.then(uploadCommand(ClientCommands.literal("the_nether"), "minecraft:the_nether", NO_RECORD))
-							.then(uploadCommand(ClientCommands.literal("the_end"), "minecraft:the_end", NO_RECORD))
-							.then(ClientCommands.literal("record").then(uploadCommand(recordArgument(), null, VisitedCommands::record)))
-							.then(ClientCommands.argument("export", IntegerArgumentType.integer(1))
-									.executes(context -> uploadExport(context.getSource(),
-											IntegerArgumentType.getInteger(context, "export"), false))
-									.then(ClientCommands.literal("confirm").executes(context -> uploadExport(
-											context.getSource(), IntegerArgumentType.getInteger(context, "export"), true)))))
-					.then(ClientCommands.literal("mark-uploaded")
-							.executes(context -> markUploaded(context.getSource(), VISITED.latestExport()))
-							.then(ClientCommands.argument("export", IntegerArgumentType.integer(1)).executes(context ->
-									markUploaded(context.getSource(), IntegerArgumentType.getInteger(context, "export")))))
-					.then(ClientCommands.literal("on").executes(context -> setEnabled(context.getSource(), true)))
-					.then(ClientCommands.literal("off").executes(context -> setEnabled(context.getSource(), false)))
-					.then(ClientCommands.literal("overlay")
-							.executes(context -> setShow(context.getSource(), !SETTINGS.showOnMap()))
-							.then(ClientCommands.literal("on").executes(context -> setShow(context.getSource(), true)))
-							.then(ClientCommands.literal("off").executes(context -> setShow(context.getSource(), false)))));
+		dispatcher.register(literal("visited")
+				.executes(context -> showCounts(context.getSource()))
+				.then(exportCommand())
+				.then(uploadCommand())
+				.then(clearCommand())
+				.then(markUploadedCommand())
+				.then(literal("on").executes(context -> setEnabled(context.getSource(), true)))
+				.then(literal("off").executes(context -> setEnabled(context.getSource(), false)))
+				.then(overlayCommand()));
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> exportCommand() {
+		return exportOptions(literal("export"), null, NO_RECORD)
+				.then(exportOptions(literal("overworld"), "minecraft:overworld", NO_RECORD))
+				.then(exportOptions(literal("the_nether"), "minecraft:the_nether", NO_RECORD))
+				.then(exportOptions(literal("the_end"), "minecraft:the_end", NO_RECORD))
+				.then(literal("record").then(exportOptions(recordArgument(), null, VisitedCommands::record)));
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> uploadCommand() {
+		return uploadOptions(literal("upload"), null, NO_RECORD)
+				.then(uploadOptions(literal("overworld"), "minecraft:overworld", NO_RECORD))
+				.then(uploadOptions(literal("the_nether"), "minecraft:the_nether", NO_RECORD))
+				.then(uploadOptions(literal("the_end"), "minecraft:the_end", NO_RECORD))
+				.then(literal("record").then(uploadOptions(recordArgument(), null, VisitedCommands::record)))
+				.then(confirmable(exportArgument(),
+						(context, confirmed) -> uploadExport(context.getSource(), exportNumber(context), confirmed)));
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> clearCommand() {
+		return confirmable(literal("clear"), (context, confirmed) -> clear(context.getSource(), confirmed))
+				.then(confirmable(literal("all"), (context, confirmed) -> clearAll(context.getSource(), confirmed)))
+				.then(literal("others").then(confirmable(recordArgument(),
+						(context, confirmed) -> clearOthers(context.getSource(), record(context), confirmed))));
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> markUploadedCommand() {
+		return literal("mark-uploaded")
+				.executes(context -> markUploaded(context.getSource(), VISITED.latestExport()))
+				.then(exportArgument().executes(context -> markUploaded(context.getSource(), exportNumber(context))));
+	}
+
+	private static LiteralArgumentBuilder<FabricClientCommandSource> overlayCommand() {
+		return literal("overlay")
+				.executes(context -> setShow(context.getSource(), !SETTINGS.showOnMap()))
+				.then(literal("on").executes(context -> setShow(context.getSource(), true)))
+				.then(literal("off").executes(context -> setShow(context.getSource(), false)));
 	}
 
 	static void tick(Minecraft client) {
@@ -221,12 +232,22 @@ final class VisitedCommands {
 
 	private static final RecordArgument NO_RECORD = context -> null;
 
+	/** A command that asks first, and runs under {@code confirm}. */
+	private interface Confirmable {
+		int run(CommandContext<FabricClientCommandSource> context, boolean confirmed) throws CommandSyntaxException;
+	}
+
+	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S confirmable(S command, Confirmable action) {
+		return command.executes(context -> action.run(context, false))
+				.then(literal("confirm").executes(context -> action.run(context, true)));
+	}
+
 	static String recordCommand(String verb, String key) {
 		return "/visited " + verb + " record " + VisitedChunks.shortName(key);
 	}
 
 	private static RequiredArgumentBuilder<FabricClientCommandSource, String> recordArgument() {
-		return ClientCommands.argument("name", StringArgumentType.word());
+		return argument("name", StringArgumentType.word());
 	}
 
 	private static String record(CommandContext<FabricClientCommandSource> context) throws CommandSyntaxException {
@@ -238,21 +259,27 @@ final class VisitedCommands {
 		return key;
 	}
 
-	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S exportCommand(
+	private static RequiredArgumentBuilder<FabricClientCommandSource, Integer> exportArgument() {
+		return argument("export", IntegerArgumentType.integer(1));
+	}
+
+	private static int exportNumber(CommandContext<FabricClientCommandSource> context) {
+		return IntegerArgumentType.getInteger(context, "export");
+	}
+
+	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S exportOptions(
 			S command, String only, RecordArgument record) {
 		return command.executes(context -> requestExport(context.getSource(), only, record.get(context), false))
-				.then(ClientCommands.literal("not-for-webmap").executes(context ->
+				.then(literal("not-for-webmap").executes(context ->
 						requestExport(context.getSource(), only, record.get(context), true)))
-				.then(ClientCommands.literal("without-packs").executes(context ->
+				.then(literal("without-packs").executes(context ->
 						exportWithoutPacks(context.getSource(), only, record.get(context), false)));
 	}
 
-	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S uploadCommand(
+	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S uploadOptions(
 			S command, String only, RecordArgument record) {
-		return command.executes(context -> requestUpload(context.getSource(), only, record.get(context), false))
-				.then(ClientCommands.literal("confirm").executes(context ->
-						requestUpload(context.getSource(), only, record.get(context), true)))
-				.then(ClientCommands.literal("without-packs").executes(context ->
+		return confirmable(command, (context, confirmed) -> requestUpload(context.getSource(), only, record.get(context), confirmed))
+				.then(literal("without-packs").executes(context ->
 						exportWithoutPacks(context.getSource(), only, record.get(context), true)));
 	}
 
