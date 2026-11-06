@@ -13,7 +13,9 @@
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
   (the webmap calls the Nether `nether`, and the overworld in cave mode `overworld_caves`), then runs
   `/api/map/process` and reads its streamed progress. Only if every image was accepted and processing finished
-  without an error naming one of them is the export marked as uploaded. Nothing is sent unless the player asks. Exports made with resource packs on
+  without an error naming one of them is the export marked as uploaded. Nothing is sent unless the player asks.
+  Only the AOMC Vanilla server's exports are uploaded (`WebmapUpload.SERVERS`, one entry per address players join by);
+  anywhere else, including singleplayer, exports work but uploads are refused. Exports made with resource packs on
   (`not-for-webmap`) are never offered for upload.
 - **Mark as uploaded** (`/visited mark-uploaded <n>`, a button on the export message): forgets the chunks that
   export contained, except ones Xaero has changed since. Works after a restart (`exports.txt`).

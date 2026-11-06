@@ -115,11 +115,12 @@ final class VisitedCommands {
 		if (counts.isEmpty()) {
 			message.append(Chat.line("none yet"));
 		}
+		boolean uploads = WebmapUpload.forWebmap(server);
 		counts.forEach((key, count) -> {
 			String export = recordCommand("export", key), upload = recordCommand("upload", key);
 			MutableComponent line = Component.literal(VisitedChunks.displayName(key) + ": " + count + "  ")
 					.append(Chat.button("Export", ChatFormatting.GREEN, export, export));
-			if (WebmapUpload.webmapName(key) != null) {
+			if (uploads && WebmapUpload.webmapName(key) != null) {
 				line.append(" ").append(Chat.button("Upload", ChatFormatting.GREEN, upload, upload + " (asks to confirm first)"));
 			}
 			message.append(Chat.line(line));
@@ -296,6 +297,11 @@ final class VisitedCommands {
 		}
 		if (WebmapUpload.running()) {
 			source.sendFeedback(Chat.error("An upload is already running."));
+			return 0;
+		}
+		Component refusal = WebmapUpload.refusal(VISITED.server());
+		if (refusal != null) {
+			source.sendFeedback(refusal);
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());

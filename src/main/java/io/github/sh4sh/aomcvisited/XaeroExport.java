@@ -602,14 +602,16 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(key, number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key, number, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
-				WebmapUpload.remember(upload);
-				job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
-						"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
-								+ ", then marks it as uploaded (asks to confirm first)"));
+				if (WebmapUpload.forWebmap(upload.server())) {
+					WebmapUpload.remember(upload);
+					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
+							"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
+									+ ", then marks it as uploaded (asks to confirm first)"));
+				}
 				job.markButtons.add(Chat.button("Mark " + VisitedChunks.shortName(key) + " as uploaded",
 						ChatFormatting.DARK_GREEN, "/visited mark-uploaded " + number, "Click once " + where()
 								+ " has been uploaded by hand: forgets what it contained, so the next export only has"
