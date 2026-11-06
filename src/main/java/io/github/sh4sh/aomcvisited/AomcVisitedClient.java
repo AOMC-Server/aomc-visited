@@ -3,15 +3,6 @@ package io.github.sh4sh.aomcvisited;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.MutableComponent;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.GameShuttingDownEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,49 +10,45 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@Mod(value = AomcVisitedClient.MOD_ID, dist = Dist.CLIENT)
-public class AomcVisitedClient {
+public final class AomcVisitedClient {
 	public static final String MOD_ID = "aomc_visited";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	private static final int AUTOSAVE_TICKS = 60 * 20;
 
 	public static final VisitedChunks VISITED =
-			new VisitedChunks(FMLPaths.GAMEDIR.get().resolve(MOD_ID));
+			new VisitedChunks(Platform.gameDir().resolve(MOD_ID));
 	public static final Settings SETTINGS =
-			new Settings(FMLPaths.GAMEDIR.get().resolve(MOD_ID).resolve("settings.properties"));
+			new Settings(Platform.gameDir().resolve(MOD_ID).resolve("settings.properties"));
 
-	private int ticksSinceSave;
-	private int reminderTicks;
+	private static int ticksSinceSave;
+	private static int reminderTicks;
 
 	private static final int REMINDER_DELAY_TICKS = 5 * 20;
 
-	public AomcVisitedClient() {
-		NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> {
-			String server = VisitedChunks.serverKey(Minecraft.getInstance());
-			if (WebmapUpload.forWebmap(server)) {
-				VISITED.open(server);
-			}
-			reminderTicks = REMINDER_DELAY_TICKS;
-		});
-		NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> {
-			VISITED.close();
-			if (xaeroInstalled()) {
-				XaeroExport.reset();
-			}
-		});
-		NeoForge.EVENT_BUS.addListener(GameShuttingDownEvent.class, event -> VISITED.close());
-		NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> tick(Minecraft.getInstance()));
-		NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class,
-				event -> VisitedCommands.register(event.getDispatcher()));
-		if (xaeroInstalled()) {
-			VisitedHighlighter.registerEvents();
-		}
-
-		LOGGER.info("AOMC Webmapper loaded");
+	private AomcVisitedClient() {
 	}
 
-	private void tick(Minecraft client) {
+	static void joined(Minecraft client) {
+		String server = VisitedChunks.serverKey(client);
+		if (WebmapUpload.forWebmap(server)) {
+			VISITED.open(server);
+		}
+		reminderTicks = REMINDER_DELAY_TICKS;
+	}
+
+	static void left() {
+		VISITED.close();
+		if (xaeroInstalled()) {
+			XaeroExport.reset();
+		}
+	}
+
+	static void stopping() {
+		VISITED.close();
+	}
+
+	static void tick(Minecraft client) {
 		if (xaeroInstalled()) {
 			XaeroExport.tick();
 			if (ticksSinceSave % 20 == 0) {
@@ -134,6 +121,6 @@ public class AomcVisitedClient {
 
 	/** Classes that use Xaero ({@link XaeroExport}, {@link VisitedHighlighter}) may only load when this is true. */
 	static boolean xaeroInstalled() {
-		return ModList.get().isLoaded("xaeroworldmap");
+		return Platform.isLoaded("xaeroworldmap");
 	}
 }
