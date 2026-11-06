@@ -40,11 +40,15 @@ public class XaeroMixinPlugin implements IMixinConfigPlugin, IMixinErrorHandler 
 	@Override
 	public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
 		XaeroHooks.applied(mixinClassName);
-		for (MethodNode handler : mixinInfo.getClassNode(0).methods) {
-			if (isInjector(handler) && !called(targetClass, handler.name)) {
-				XaeroHooks.broken(mixinInfo.getName() + "." + handler.name);
+		List<String> handlers = mixinInfo.getClassNode(0).methods.stream()
+				.filter(XaeroMixinPlugin::isInjector).map(handler -> handler.name).toList();
+		XaeroHooks.scanWhenLoaded(() -> {
+			for (String handler : handlers) {
+				if (!called(targetClass, handler)) {
+					XaeroHooks.broken(mixinInfo.getName() + "." + handler);
+				}
 			}
-		}
+		});
 	}
 
 	private static boolean isInjector(MethodNode method) {
