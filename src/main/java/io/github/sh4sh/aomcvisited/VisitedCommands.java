@@ -250,7 +250,6 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	/** Reads the export target from the command, which may name a record. */
 	private interface TargetArgument {
 		ExportTarget get(CommandContext<Object> context) throws CommandSyntaxException;
 	}
