@@ -52,6 +52,7 @@ public final class Platform {
 				VisitedHighlighter.exportScreenClosed();
 			}
 		});
+		XaeroHooks.check();
 		AomcVisitedClient.LOGGER.info("AOMC Webmapper loaded");
 	}
 

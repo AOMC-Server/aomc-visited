@@ -1,6 +1,7 @@
 {
 	"required": true,
 	"package": "io.github.sh4sh.aomcvisited.mixin",
+	"plugin": "io.github.sh4sh.aomcvisited.mixin.XaeroMixinPlugin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"XaeroExportTaskMixin",

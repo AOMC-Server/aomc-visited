@@ -1,0 +1,54 @@
+package io.github.sh4sh.aomcvisited;
+
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The mixins' hooks into Xaero that didn't go in. A Xaero update can move the code they hook into; the mod then
+ * stays off rather than half working.
+ */
+public final class XaeroHooks {
+	private static final Set<String> TARGETS = ConcurrentHashMap.newKeySet();
+	private static final Set<String> EXPECTED = ConcurrentHashMap.newKeySet();
+	private static final Set<String> APPLIED = ConcurrentHashMap.newKeySet();
+	private static final Set<String> BROKEN = ConcurrentHashMap.newKeySet();
+
+	private XaeroHooks() {
+	}
+
+	public static void expect(String mixin, String target) {
+		EXPECTED.add(mixin);
+		TARGETS.add(target.replace('/', '.'));
+	}
+
+	public static void applied(String mixin) {
+		APPLIED.add(mixin);
+	}
+
+	public static void broken(String hook) {
+		BROKEN.add(hook);
+	}
+
+	/** Mixins apply when a class loads, so this loads each class they hook into before the player joins. */
+	static void check() {
+		for (String target : TARGETS) {
+			try {
+				Class.forName(target, false, XaeroHooks.class.getClassLoader());
+			} catch (ClassNotFoundException | LinkageError e) {
+				BROKEN.add(target);
+			}
+		}
+		for (String mixin : EXPECTED) {
+			if (!APPLIED.contains(mixin)) {
+				BROKEN.add(mixin);
+			}
+		}
+		if (!BROKEN.isEmpty()) {
+			AomcVisitedClient.LOGGER.warn("Off: these hooks into Xaero's World Map didn't go in: {}", BROKEN);
+		}
+	}
+
+	static boolean working() {
+		return BROKEN.isEmpty();
+	}
+}
