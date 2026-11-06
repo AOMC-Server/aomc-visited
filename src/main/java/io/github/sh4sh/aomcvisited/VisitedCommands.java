@@ -92,6 +92,15 @@ final class VisitedCommands {
 				.then(literal("off").executes(context -> setShow(context.getSource(), false)));
 	}
 
+	private static boolean unavailable(FabricClientCommandSource source) {
+		if (VISITED.server() != null) {
+			return false;
+		}
+		source.sendFeedback(Minecraft.getInstance().getConnection() == null
+				? Chat.error("Not connected to a world.") : WebmapUpload.offHere());
+		return true;
+	}
+
 	static void tick(Minecraft client) {
 		if (pending != null) {
 			PendingExport export = pending;
@@ -104,11 +113,10 @@ final class VisitedCommands {
 	}
 
 	private static int showCounts(FabricClientCommandSource source) {
-		String server = VISITED.server();
-		if (server == null) {
-			source.sendFeedback(Chat.error("Not connected to a world."));
+		if (unavailable(source)) {
 			return 0;
 		}
+		String server = VISITED.server();
 		Map<String, Integer> counts = VISITED.counts();
 		counts.values().removeIf(count -> count == 0);
 		MutableComponent message = Chat.info("Chunks recorded on " + server.substring(server.indexOf('/') + 1) + ":");
@@ -129,8 +137,7 @@ final class VisitedCommands {
 	}
 
 	private static int clear(FabricClientCommandSource source, boolean confirm) {
-		if (VISITED.server() == null || Minecraft.getInstance().level == null) {
-			source.sendFeedback(Chat.error("Not connected to a world."));
+		if (unavailable(source) || Minecraft.getInstance().level == null) {
 			return 0;
 		}
 		ResourceKey<Level> dimension = Minecraft.getInstance().level.dimension();
@@ -150,8 +157,7 @@ final class VisitedCommands {
 	}
 
 	private static int clearOthers(FabricClientCommandSource source, String record, boolean confirm) {
-		if (VISITED.server() == null) {
-			source.sendFeedback(Chat.error("Not connected to a world."));
+		if (unavailable(source)) {
 			return 0;
 		}
 		List<String> others = XaeroExport.sameMap(record);
@@ -175,8 +181,7 @@ final class VisitedCommands {
 	}
 
 	private static int clearAll(FabricClientCommandSource source, boolean confirm) {
-		if (VISITED.server() == null) {
-			source.sendFeedback(Chat.error("Not connected to a world."));
+		if (unavailable(source)) {
 			return 0;
 		}
 		if (!confirm) {
@@ -195,6 +200,9 @@ final class VisitedCommands {
 	}
 
 	private static int markUploaded(FabricClientCommandSource source, int export) {
+		if (unavailable(source)) {
+			return 0;
+		}
 		if (export < 0) {
 			source.sendFeedback(Chat.error("There's no export to mark as uploaded. To start over, use /visited"
 					+ " clear."));
@@ -290,6 +298,9 @@ final class VisitedCommands {
 
 	/** {@code /visited upload [<dimension>|record <name>]}: exports, then uploads to the webmap and marks as uploaded. */
 	private static int requestUpload(FabricClientCommandSource source, ExportTarget target, boolean confirmed) {
+		if (unavailable(source)) {
+			return 0;
+		}
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
@@ -323,6 +334,9 @@ final class VisitedCommands {
 
 	/** {@code /visited upload <export>}: the [Upload] button on an export made this session. */
 	private static int uploadExport(FabricClientCommandSource source, int number, boolean confirmed) {
+		if (unavailable(source)) {
+			return 0;
+		}
 		WebmapUpload.Dimension export = WebmapUpload.export(number);
 		if (export == null) {
 			source.sendFeedback(Chat.error("That export's images aren't known any more: it's from an earlier session,"
@@ -351,6 +365,9 @@ final class VisitedCommands {
 	}
 
 	private static int requestExport(FabricClientCommandSource source, ExportTarget target, boolean withPacks) {
+		if (unavailable(source)) {
+			return 0;
+		}
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
@@ -375,6 +392,9 @@ final class VisitedCommands {
 	}
 
 	private static int exportWithoutPacks(FabricClientCommandSource source, ExportTarget target, boolean upload) {
+		if (unavailable(source)) {
+			return 0;
+		}
 		if (!xaeroInstalled()) {
 			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;

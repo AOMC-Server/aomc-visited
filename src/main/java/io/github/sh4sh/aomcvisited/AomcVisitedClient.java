@@ -12,7 +12,9 @@ import net.minecraft.network.chat.MutableComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class AomcVisitedClient implements ClientModInitializer {
 	public static final String MOD_ID = "aomc_visited";
@@ -33,7 +35,10 @@ public class AomcVisitedClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
-			VISITED.open(VisitedChunks.serverKey(client));
+			String server = VisitedChunks.serverKey(client);
+			if (WebmapUpload.forWebmap(server)) {
+				VISITED.open(server);
+			}
 			reminderTicks = REMINDER_DELAY_TICKS;
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
@@ -61,11 +66,30 @@ public class AomcVisitedClient implements ClientModInitializer {
 		}
 		VisitedCommands.tick(client);
 		if (reminderTicks > 0 && --reminderTicks == 0) {
-			remindOfEarlierGround(client);
+			greet(client);
 		}
 		if (++ticksSinceSave >= AUTOSAVE_TICKS) {
 			ticksSinceSave = 0;
 			VISITED.save();
+		}
+	}
+
+	/** Servers already told this launch that the mod is off there. */
+	private static final Set<String> TOLD_OFF = new HashSet<>();
+
+	private static void greet(Minecraft client) {
+		if (VISITED.server() != null) {
+			remindOfEarlierGround(client);
+			return;
+		}
+		if (client.player == null || !SETTINGS.enabled()) {
+			return;
+		}
+		String server = VisitedChunks.serverKey(client);
+		if (!WebmapUpload.known(server) && TOLD_OFF.add(server)) {
+			Chat.send(client, WebmapUpload.offHere()
+					.append(Chat.line("To use it on another server, get in touch on GitHub."))
+					.append(Chat.buttons(Chat.linkButton("Open GitHub", WebmapUpload.ISSUES))));
 		}
 	}
 
@@ -83,10 +107,10 @@ public class AomcVisitedClient implements ClientModInitializer {
 		for (VisitedChunks.Earlier record : earlier) {
 			message.append(Chat.line(VisitedChunks.shortName(record.key()) + ": " + record.chunks() + " chunks"));
 		}
-		message.append(Chat.line("If you keep playing, your next export includes it."));
+		message.append(Chat.line("If you keep playing, your next upload includes it."));
 		Chat.send(client, message.append(Chat.buttons(
-				Chat.button("Export it now", ChatFormatting.GREEN, "/visited export",
-						"Export it now, or later: it stays in the record either way"),
+				Chat.button("Upload it now", ChatFormatting.GREEN, "/visited upload",
+						"Upload it now, or later: it stays in the record either way (asks to confirm first)"),
 				Chat.button("Clear old session", ChatFormatting.RED, "/visited clear all",
 						"Forget it in every dimension (asks to confirm)"))));
 	}

@@ -18,12 +18,20 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = "map.diorite.xyz";
+	private static final String SERVER_NAME = "AOMC Vanilla";
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
+	static final URI ISSUES = URI.create("https://github.com/AOMC-Server/aomc-visited/issues");
+	private static final Set<String> SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
+			"server/161.129.180.145_25565", "server/161.129.180.145");
+	private static final Set<String> KNOWN_SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
+			"server/161.129.180.145_25565", "server/161.129.180.145", "server/create.diorite.xyz",
+			"server/gw.algot.net_25037", "server/gw.algot.net_25030");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 	private static final String USER_AGENT = "AOMC Webmapper/" + FabricLoader.getInstance()
 			.getModContainer(AomcVisitedClient.MOD_ID).map(mod -> mod.getMetadata().getVersion().getFriendlyString())
@@ -33,8 +41,8 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: its record key, its export number, and its cleaned images. */
-	record Dimension(String key, int export, List<Path> images) {
+	/** One dimension of an export: the server it was recorded on, its record key, its export number, and its cleaned images. */
+	record Dimension(String server, String key, int export, List<Path> images) {
 		String map() {
 			return webmapName(key);
 		}
@@ -49,6 +57,28 @@ final class WebmapUpload {
 
 	static Dimension export(int number) {
 		return EXPORTS.get(number);
+	}
+
+	static boolean known(String server) {
+		return KNOWN_SERVERS.contains(server);
+	}
+
+	static boolean forWebmap(String server) {
+		return server != null && SERVERS.contains(server);
+	}
+
+	static MutableComponent offHere() {
+		return Chat.info("Only works on the " + SERVER_NAME + " server, so it's off here.");
+	}
+
+	/** Why exports from this server can't be uploaded, or null if they can. */
+	static Component refusal(String server) {
+		if (forWebmap(server)) {
+			return null;
+		}
+		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
+		return Chat.error("Only maps of the " + SERVER_NAME + " server go to " + HOST + ". You're on " + name
+				+ ", so nothing is uploaded from here.");
 	}
 
 	static boolean running() {
@@ -70,6 +100,13 @@ final class WebmapUpload {
 	 * dimension whose images were all accepted and processed as uploaded. Runs in the background.
 	 */
 	static void start(Minecraft client, List<Dimension> dimensions) {
+		for (Dimension dimension : dimensions) {
+			Component refusal = refusal(dimension.server());
+			if (refusal != null) {
+				Chat.send(client, refusal);
+				return;
+			}
+		}
 		running = true;
 		Thread.ofVirtual().name("AOMC Webmapper upload").start(() -> {
 			try {

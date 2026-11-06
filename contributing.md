@@ -13,13 +13,18 @@
   `WebmapUpload`): uploads each image, one after another, to `https://map.diorite.xyz/api/map/upload/<dim>`
   (the webmap calls the Nether `nether`, and the overworld in cave mode `overworld_caves`), then runs
   `/api/map/process` and reads its streamed progress. Only if every image was accepted and processing finished
-  without an error naming one of them is the export marked as uploaded. Nothing is sent unless the player asks. Exports made with resource packs on
+  without an error naming one of them is the export marked as uploaded. Nothing is sent unless the player asks.
+  Only the AOMC Vanilla server's exports are uploaded (`WebmapUpload.SERVERS`, one entry per address players join by);
+  anywhere else, including singleplayer, exports work but uploads are refused. Exports made with resource packs on
   (`not-for-webmap`) are never offered for upload.
 - **Mark as uploaded** (`/visited mark-uploaded <n>`, a button on the export message): forgets the chunks that
   export contained, except ones Xaero has changed since. Works after a restart (`exports.txt`).
 - **Old map data**: the record is kept until the player exports it or clears it. On joining after more than
   six hours offline (`OUT_OF_DATE_MS`), a reminder warns that the data may be out of date and offers
-  [Export it now] and [Clear old session] (`/visited clear all`).
+  [Upload it now] and [Clear old session] (`/visited clear all`).
+- **Other servers**: the mod only works on the AOMC Vanilla server (`WebmapUpload.SERVERS`). Anywhere else,
+  including singleplayer, nothing is recorded, shown or uploaded, and commands say so. On joining a
+  server it doesn't know (`WebmapUpload.KNOWN_SERVERS`), a message says it's off there, with a GitHub link, once per launch.
 - **Map overlay** (`VisitedHighlighter`, `/visited overlay on|off`): green fill on new or changed areas, an
   outline around everything the next export keeps.
 

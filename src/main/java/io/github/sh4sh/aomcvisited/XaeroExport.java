@@ -602,7 +602,7 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(key, number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key, number, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
