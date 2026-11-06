@@ -9,6 +9,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
 
+import java.net.URI;
 import java.nio.file.Path;
 
 public final class Chat {
@@ -59,6 +60,13 @@ public final class Chat {
 				.withColor(ChatFormatting.AQUA)
 				.withClickEvent(new ClickEvent.OpenFile(path))
 				.withHoverEvent(new HoverEvent.ShowText(Component.literal(path.toString()))));
+	}
+
+	public static MutableComponent linkButton(String label, URI uri) {
+		return Component.literal("[" + label + "]").withStyle(style -> style
+				.withColor(ChatFormatting.AQUA)
+				.withClickEvent(new ClickEvent.OpenUrl(uri))
+				.withHoverEvent(new HoverEvent.ShowText(Component.literal(uri.toString()))));
 	}
 
 	/** Minecraft chat can't centre text, so this pads with spaces for the chat's current width. */

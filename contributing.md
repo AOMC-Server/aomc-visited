@@ -21,7 +21,10 @@
   export contained, except ones Xaero has changed since. Works after a restart (`exports.txt`).
 - **Old map data**: the record is kept until the player exports it or clears it. On joining after more than
   six hours offline (`OUT_OF_DATE_MS`), a reminder warns that the data may be out of date and offers
-  [Export it now] and [Clear old session] (`/visited clear all`).
+  [Upload it now] and [Clear old session] (`/visited clear all`).
+- **Other servers**: the mod only works on the AOMC Vanilla server (`WebmapUpload.SERVERS`). Anywhere else,
+  including singleplayer, nothing is recorded, shown or uploaded, and commands say so. On joining a
+  server it doesn't know (`WebmapUpload.KNOWN_SERVERS`), a message says it's off there, with a GitHub link, once per launch.
 - **Map overlay** (`VisitedHighlighter`, `/visited overlay on|off`): green fill on new or changed areas, an
   outline around everything the next export keeps.
 

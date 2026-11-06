@@ -606,12 +606,10 @@ public final class XaeroExport {
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
-				if (WebmapUpload.forWebmap(upload.server())) {
-					WebmapUpload.remember(upload);
-					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
-							"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
-									+ ", then marks it as uploaded (asks to confirm first)"));
-				}
+				WebmapUpload.remember(upload);
+				job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
+						"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
+								+ ", then marks it as uploaded (asks to confirm first)"));
 				job.markButtons.add(Chat.button("Mark " + VisitedChunks.shortName(key) + " as uploaded",
 						ChatFormatting.DARK_GREEN, "/visited mark-uploaded " + number, "Click once " + where()
 								+ " has been uploaded by hand: forgets what it contained, so the next export only has"
