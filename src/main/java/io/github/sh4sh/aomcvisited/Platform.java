@@ -40,6 +40,7 @@ public final class Platform implements ClientModInitializer {
 				ScreenEvents.remove(screen).register(removed -> VisitedHighlighter.exportScreenClosed());
 			}
 		});
+		XaeroHooks.check();
 		AomcVisitedClient.LOGGER.info("AOMC Webmapper loaded");
 	}
 

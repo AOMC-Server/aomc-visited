@@ -73,7 +73,11 @@ public final class AomcVisitedClient {
 			return;
 		}
 		String server = VisitedChunks.serverKey(client);
-		if (!WebmapUpload.known(server) && TOLD_OFF.add(server)) {
+		if (!XaeroHooks.working()) {
+			if (TOLD_OFF.add(server)) {
+				Chat.send(client, WebmapUpload.offHere());
+			}
+		} else if (!WebmapUpload.known(server) && TOLD_OFF.add(server)) {
 			Chat.send(client, WebmapUpload.offHere()
 					.append(Chat.line("To use it on another server, get in touch on GitHub."))
 					.append(Chat.buttons(Chat.linkButton("Open GitHub", WebmapUpload.ISSUES))));
