@@ -7,11 +7,16 @@
 	"authors": [
 		"sunngoose"
 	],
+	"contact": {
+		"homepage": "https://github.com/AOMC-Server/aomc-visited",
+		"sources": "https://github.com/AOMC-Server/aomc-visited",
+		"issues": "https://github.com/AOMC-Server/aomc-visited/issues"
+	},
 	"icon": "assets/aomc_visited/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"io.github.sh4sh.aomcvisited.AomcVisitedClient"
+			"io.github.sh4sh.aomcvisited.Platform"
 		]
 	},
 	"mixins": [

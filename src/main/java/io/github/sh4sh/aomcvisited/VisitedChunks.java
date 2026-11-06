@@ -77,8 +77,6 @@ public final class VisitedChunks {
 
 	private static final Set<String> WEBMAP_DIMENSIONS =
 			Set.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end");
-	/** Dimensions the webmap only has with cave mode off: AOMC's Nether map is the roof. */
-	private static final Set<String> SURFACE_ONLY = Set.of("minecraft:the_nether");
 
 	public synchronized boolean mapped(ResourceKey<Level> dimension, int layer, int x, int z, boolean differs) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
@@ -92,12 +90,12 @@ public final class VisitedChunks {
 			}
 			open(key);
 		}
-		String id = dimension.identifier().toString();
+		String id = Platform.id(dimension);
 		String key = recordKey(id, layer);
 		if (!WEBMAP_DIMENSIONS.contains(id) || layerOf(key) != layer) {
 			return false;
 		}
-		long pos = ChunkPos.pack(x, z);
+		long pos = Platform.chunk(x, z);
 		if (differs) {
 			lastWrite.computeIfAbsent(key, k -> new Long2LongOpenHashMap()).put(pos, ++writes);
 		}
@@ -108,7 +106,7 @@ public final class VisitedChunks {
 			return false;
 		}
 		if (added) {
-			regionCounts.computeIfAbsent(key, k -> new Long2IntOpenHashMap()).addTo(ChunkPos.pack(x >> 5, z >> 5), 1);
+			regionCounts.computeIfAbsent(key, k -> new Long2IntOpenHashMap()).addTo(Platform.chunk(x >> 5, z >> 5), 1);
 			toggleHash(key, pos, false);
 		}
 		if (nowChanged) {
@@ -120,12 +118,12 @@ public final class VisitedChunks {
 
 	public synchronized boolean isChanged(String key, int x, int z) {
 		LongOpenHashSet chunks = changed.get(key);
-		return chunks != null && chunks.contains(ChunkPos.pack(x, z));
+		return chunks != null && chunks.contains(Platform.chunk(x, z));
 	}
 
 	public synchronized int regionHash(String key, int regionX, int regionZ) {
 		Long2IntOpenHashMap hashes = regionHashes.get(key);
-		return hashes == null ? 0 : hashes.get(ChunkPos.pack(regionX, regionZ));
+		return hashes == null ? 0 : hashes.get(Platform.chunk(regionX, regionZ));
 	}
 
 	public synchronized Map<String, LongOpenHashSet> takeChangedRegions() {
@@ -139,14 +137,14 @@ public final class VisitedChunks {
 		Long2IntOpenHashMap hashes = regionHashes.computeIfAbsent(key, k -> new Long2IntOpenHashMap());
 		LongOpenHashSet regions = changedRegions.computeIfAbsent(key, k -> new LongOpenHashSet());
 		int x = ChunkPos.getX(pos), z = ChunkPos.getZ(pos);
-		long own = ChunkPos.pack(x >> 5, z >> 5);
+		long own = Platform.chunk(x >> 5, z >> 5);
 		hashes.put(own, hashes.get(own) ^ mix(pos, changedMark ? 1 : 0));
 		regions.add(own);
 		if (changedMark) {
 			return;
 		}
-		for (long neighbour : new long[] {ChunkPos.pack((x - 1) >> 5, z >> 5), ChunkPos.pack((x + 1) >> 5, z >> 5),
-				ChunkPos.pack(x >> 5, (z - 1) >> 5), ChunkPos.pack(x >> 5, (z + 1) >> 5)}) {
+		for (long neighbour : new long[] {Platform.chunk((x - 1) >> 5, z >> 5), Platform.chunk((x + 1) >> 5, z >> 5),
+				Platform.chunk(x >> 5, (z - 1) >> 5), Platform.chunk(x >> 5, (z + 1) >> 5)}) {
 			if (neighbour != own) {
 				hashes.put(neighbour, hashes.get(neighbour) ^ mix(pos, 2));
 				regions.add(neighbour);
@@ -160,12 +158,12 @@ public final class VisitedChunks {
 
 	public synchronized boolean contains(String key, int x, int z) {
 		LongOpenHashSet chunks = records.get(key);
-		return chunks != null && chunks.contains(ChunkPos.pack(x, z));
+		return chunks != null && chunks.contains(Platform.chunk(x, z));
 	}
 
 	public synchronized int regionCount(String key, int regionX, int regionZ) {
 		Long2IntOpenHashMap counts = regionCounts.get(key);
-		return counts == null ? 0 : counts.get(ChunkPos.pack(regionX, regionZ));
+		return counts == null ? 0 : counts.get(Platform.chunk(regionX, regionZ));
 	}
 
 	public synchronized void open(String serverKey) {
@@ -277,7 +275,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int clear(ResourceKey<Level> dimension) {
-		return recordKeys(dimension.identifier().toString()).stream().mapToInt(this::clearRecord).sum();
+		return recordKeys(Platform.id(dimension)).stream().mapToInt(this::clearRecord).sum();
 	}
 
 	public synchronized int clearAll() {
@@ -353,7 +351,7 @@ public final class VisitedChunks {
 				toggleHash(export.key(), pos, true);
 			}
 			written.remove(pos);
-			counts.addTo(ChunkPos.pack(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), -1);
+			counts.addTo(Platform.chunk(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), -1);
 			forgotten++;
 		}
 		dirty.add(export.key());
@@ -384,7 +382,7 @@ public final class VisitedChunks {
 	}
 
 	public synchronized int count(ResourceKey<Level> dimension) {
-		return recordKeys(dimension.identifier().toString()).stream().mapToInt(this::size).sum();
+		return recordKeys(Platform.id(dimension)).stream().mapToInt(this::size).sum();
 	}
 
 	public synchronized Map<String, Integer> counts() {
@@ -464,7 +462,7 @@ public final class VisitedChunks {
 					LongOpenHashSet chunks = new LongOpenHashSet();
 					for (int i = 2; i < fields.length; i++) {
 						String[] xz = fields[i].split(",");
-						chunks.add(ChunkPos.pack(Integer.parseInt(xz[0]), Integer.parseInt(xz[1])));
+						chunks.add(Platform.chunk(Integer.parseInt(xz[0]), Integer.parseInt(xz[1])));
 					}
 					exports.put(number, new Export(fields[1], chunks, 0));
 					nextExport = Math.max(nextExport, number + 1);
@@ -484,7 +482,7 @@ public final class VisitedChunks {
 		for (LongIterator it = chunks.iterator(); it.hasNext(); ) {
 			long pos = it.nextLong();
 			if (recorded.add(pos)) {
-				counts.addTo(ChunkPos.pack(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), 1);
+				counts.addTo(Platform.chunk(ChunkPos.getX(pos) >> 5, ChunkPos.getZ(pos) >> 5), 1);
 				toggleHash(key, pos, false);
 			}
 			if (changedChunks.contains(pos) && recordedChanged.add(pos)) {
@@ -521,7 +519,7 @@ public final class VisitedChunks {
 	 * A surface-only dimension always gets its cave-mode-off record.
 	 */
 	public static String recordKey(String dimension, int layer) {
-		if (layer == SURFACE_LAYER || SURFACE_ONLY.contains(dimension)) {
+		if (layer == SURFACE_LAYER || Target.SURFACE_ONLY.contains(dimension)) {
 			return dimension;
 		}
 		return dimension + "/" + (layer == FULL_CAVE_LAYER ? FULL : LAYERED + layer * 16);
@@ -599,7 +597,7 @@ public final class VisitedChunks {
 			}
 			String[] fields = line.split(",");
 			try {
-				long pos = ChunkPos.pack(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]));
+				long pos = Platform.chunk(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]));
 				chunks.add(pos);
 				if (fields.length > 2 && fields[2].equals("c")) {
 					changedChunks.add(pos);
