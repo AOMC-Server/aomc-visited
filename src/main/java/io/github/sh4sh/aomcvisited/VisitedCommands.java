@@ -22,7 +22,6 @@ import java.util.Map;
 
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.SETTINGS;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
-import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
 
 final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
@@ -311,10 +310,6 @@ final class VisitedCommands {
 		if (unavailable()) {
 			return 0;
 		}
-		if (!xaeroInstalled()) {
-			reply(Chat.error("Uploading needs Xaero's World Map."));
-			return 0;
-		}
 		if (WebmapUpload.running()) {
 			reply(Chat.error("An upload is already running."));
 			return 0;
@@ -378,10 +373,6 @@ final class VisitedCommands {
 		if (unavailable()) {
 			return 0;
 		}
-		if (!xaeroInstalled()) {
-			reply(Chat.error("Exporting needs Xaero's World Map."));
-			return 0;
-		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited export" + target.commandSuffix();
 		if (!packs.isEmpty() && !withPacks) {
@@ -403,10 +394,6 @@ final class VisitedCommands {
 
 	private static int exportWithoutPacks(ExportTarget target, boolean upload) {
 		if (unavailable()) {
-			return 0;
-		}
-		if (!xaeroInstalled()) {
-			reply(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		if (XaeroExport.active()) {
@@ -438,8 +425,6 @@ final class VisitedCommands {
 	}
 
 	private static void refreshOverlay() {
-		if (xaeroInstalled()) {
-			VisitedHighlighter.refreshAll();
-		}
+		VisitedHighlighter.refreshAll();
 	}
 }
