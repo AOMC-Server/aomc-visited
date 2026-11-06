@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  changes:
+  docs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.check.outputs.code }}
@@ -31,8 +31,8 @@ jobs:
           fi
 
   build:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+    needs: docs
+    if: needs.docs.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
