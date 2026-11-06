@@ -1,6 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 license = "All Rights Reserved"
+issueTrackerURL = "https://github.com/AOMC-Server/aomc-visited/issues"
 
 [[mods]]
 modId = "aomc_visited"
@@ -9,6 +10,7 @@ displayName = "AOMC Webmapper"
 description = "Remembers where you have been, then exports those areas from Xaero's World Map and uploads them to the community webmap."
 authors = "sunngoose"
 logoFile = "aomc_visited.png"
+displayURL = "https://github.com/AOMC-Server/aomc-visited"
 
 [[mixins]]
 config = "aomc_visited.mixins.json"
