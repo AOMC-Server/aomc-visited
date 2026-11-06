@@ -13,7 +13,7 @@
   (the webmap calls the Nether `nether`, and the overworld in cave mode `overworld_caves`), then runs
   `/api/map/process` and reads its streamed progress. Only if every image was accepted and processing finished
   without an error naming one of them is the export marked as uploaded. Nothing is sent unless the player asks.
-  Only the survival server's exports are uploaded (`WebmapUpload.SERVERS`); the creative server shares its host.
+  Only the AOMC Create survival server's exports are uploaded (`WebmapUpload.SERVERS`); the creative server shares its host.
   Exports made with resource packs on (`not-for-webmap`) are never offered for upload. A unique prefix on uploaded filenames could tell our
   images apart in the shared processing log, if errors ever get mixed up.
 - **Mark as uploaded** (`/visited mark-uploaded <n>`, a button on the export message): forgets the chunks that

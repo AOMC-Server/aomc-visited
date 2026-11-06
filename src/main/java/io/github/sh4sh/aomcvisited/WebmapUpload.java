@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = "create.diorite.xyz";
+	private static final String SERVER_NAME = "AOMC Create";
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
 	/** Record folders of the survival server the webmap shows; its creative server is on the same host. */
 	private static final Set<String> SERVERS = Set.of("server/create.diorite.xyz", "server/gw.algot.net_25037");
@@ -64,7 +65,7 @@ final class WebmapUpload {
 			return null;
 		}
 		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
-		return Chat.error("Only maps of the " + HOST + " server go to its webmap. You're on " + name
+		return Chat.error("Only maps of the " + SERVER_NAME + " server go to " + HOST + ". You're on " + name
 				+ ", so nothing is uploaded from here.");
 	}
 
