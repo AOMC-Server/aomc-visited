@@ -57,10 +57,15 @@ final class WebmapUpload {
 	}
 
 	static boolean forWebmap(String server) {
-		return server != null && Target.SERVERS.contains(server);
+		return server != null && Target.SERVERS.contains(server) && XaeroHooks.working();
 	}
 
 	static MutableComponent offHere() {
+		if (!XaeroHooks.working()) {
+			return Chat.warning("Doesn't work with this version of Xaero's World Map yet, so it's off.")
+					.append(Chat.line("Check for an update, or let us know on GitHub."))
+					.append(Chat.buttons(Chat.linkButton("Open GitHub", ISSUES)));
+		}
 		return Chat.info("Only works on the " + Target.SERVER_NAME + " server, so it's off here.");
 	}
 

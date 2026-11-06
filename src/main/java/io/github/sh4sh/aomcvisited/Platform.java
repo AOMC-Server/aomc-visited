@@ -35,22 +35,17 @@ public final class Platform implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(AomcVisitedClient::tick);
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) ->
 				VisitedCommands.register((CommandDispatcher<Object>) (CommandDispatcher<?>) dispatcher));
-		if (AomcVisitedClient.xaeroInstalled()) {
-			ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-				if (VisitedHighlighter.exportScreenOpened(screen)) {
-					ScreenEvents.remove(screen).register(removed -> VisitedHighlighter.exportScreenClosed());
-				}
-			});
-		}
+		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+			if (VisitedHighlighter.exportScreenOpened(screen)) {
+				ScreenEvents.remove(screen).register(removed -> VisitedHighlighter.exportScreenClosed());
+			}
+		});
+		XaeroHooks.check();
 		AomcVisitedClient.LOGGER.info("AOMC Webmapper loaded");
 	}
 
 	static Path gameDir() {
 		return FabricLoader.getInstance().getGameDir();
-	}
-
-	static boolean isLoaded(String modId) {
-		return FabricLoader.getInstance().isModLoaded(modId);
 	}
 
 	static String modVersion() {
