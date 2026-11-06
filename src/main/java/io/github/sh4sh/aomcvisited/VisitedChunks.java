@@ -84,10 +84,11 @@ public final class VisitedChunks {
 		}
 		if (server == null) {
 			Minecraft client = Minecraft.getInstance();
-			if (client.getConnection() == null) {
+			String key = client.getConnection() == null ? null : serverKey(client);
+			if (!WebmapUpload.forWebmap(key)) {
 				return false;
 			}
-			open(serverKey(client));
+			open(key);
 		}
 		String id = dimension.location().toString();
 		if (!WEBMAP_DIMENSIONS.contains(id)) {

@@ -5,6 +5,8 @@ automatically prepares Xaero exports that you can upload to the community webmap
 
 This is the `neoforge-1.21.1` branch. The Fabric 26.3 version for the main server is on `main`.
 
+It only works on the AOMC Create server; anywhere else it stays off.
+
 Requires Xaero World Map. Built against Xaero World Map v1.47.0 for NeoForge 1.21.1, but it may work on other versions!
 
 ## How to use

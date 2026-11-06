@@ -24,9 +24,14 @@ import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = "create.diorite.xyz";
+	private static final String SERVER_NAME = "AOMC Create";
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
+	static final URI ISSUES = URI.create("https://github.com/AOMC-Server/aomc-visited/issues");
 	/** Record folders of the survival server the webmap shows; its creative server is on the same host. */
 	private static final Set<String> SERVERS = Set.of("server/create.diorite.xyz", "server/gw.algot.net_25037");
+	private static final Set<String> KNOWN_SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
+			"server/161.129.180.145_25565", "server/161.129.180.145", "server/create.diorite.xyz",
+			"server/gw.algot.net_25037", "server/gw.algot.net_25030");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 	private static final String USER_AGENT = "AOMC Webmapper/" + ModList.get()
 			.getModContainerById(AomcVisitedClient.MOD_ID).map(mod -> mod.getModInfo().getVersion().toString())
@@ -54,8 +59,16 @@ final class WebmapUpload {
 		return EXPORTS.get(number);
 	}
 
+	static boolean known(String server) {
+		return KNOWN_SERVERS.contains(server);
+	}
+
 	static boolean forWebmap(String server) {
 		return server != null && SERVERS.contains(server);
+	}
+
+	static MutableComponent offHere() {
+		return Chat.info("Only works on the " + SERVER_NAME + " server, so it's off here.");
 	}
 
 	/** Why exports from this server can't be uploaded, or null if they can. */
@@ -64,7 +77,7 @@ final class WebmapUpload {
 			return null;
 		}
 		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
-		return Chat.error("Only maps of the " + HOST + " server go to its webmap. You're on " + name
+		return Chat.error("Only maps of the " + SERVER_NAME + " server go to " + HOST + ". You're on " + name
 				+ ", so nothing is uploaded from here.");
 	}
 
