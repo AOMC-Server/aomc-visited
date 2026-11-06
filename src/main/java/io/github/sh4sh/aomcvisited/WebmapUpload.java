@@ -35,7 +35,6 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	/** One dimension of an export: the server it was recorded on, its record key, its export number, and its cleaned images. */
 	record Dimension(String server, String key, int export, List<Path> images) {
 		String map() {
 			return webmapName(key);
