@@ -41,28 +41,22 @@ public final class Platform {
 		NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> AomcVisitedClient.tick(Minecraft.getInstance()));
 		NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class, event ->
 				VisitedCommands.register((CommandDispatcher<Object>) (CommandDispatcher<?>) event.getDispatcher()));
-		if (AomcVisitedClient.xaeroInstalled()) {
-			NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
-				if (VisitedHighlighter.exportScreenOpened(event.getScreen())) {
-					exportScreen = event.getScreen();
-				}
-			});
-			NeoForge.EVENT_BUS.addListener(ScreenEvent.Closing.class, event -> {
-				if (event.getScreen() == exportScreen) {
-					exportScreen = null;
-					VisitedHighlighter.exportScreenClosed();
-				}
-			});
-		}
+		NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
+			if (VisitedHighlighter.exportScreenOpened(event.getScreen())) {
+				exportScreen = event.getScreen();
+			}
+		});
+		NeoForge.EVENT_BUS.addListener(ScreenEvent.Closing.class, event -> {
+			if (event.getScreen() == exportScreen) {
+				exportScreen = null;
+				VisitedHighlighter.exportScreenClosed();
+			}
+		});
 		AomcVisitedClient.LOGGER.info("AOMC Webmapper loaded");
 	}
 
 	static Path gameDir() {
 		return FMLPaths.GAMEDIR.get();
-	}
-
-	static boolean isLoaded(String modId) {
-		return ModList.get().isLoaded(modId);
 	}
 
 	static String modVersion() {
