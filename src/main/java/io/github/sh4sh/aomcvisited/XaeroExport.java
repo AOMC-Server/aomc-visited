@@ -369,6 +369,12 @@ public final class XaeroExport {
 				if (!uploads.isEmpty()) {
 					WebmapUpload.start(client, List.copyOf(uploads));
 				}
+			} else if (anyImages && mode == Mode.NOT_FOR_WEBMAP) {
+				Util.getPlatform().openFile(root.toFile());
+				message = Chat.warning("Exported with your packs on, images not suitable for webmap upload: map exports/"
+						+ shown + ".");
+				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
+				Chat.status(client, "export done, see chat.", ChatFormatting.GOLD);
 			} else if (anyImages) {
 				Util.getPlatform().openFile(root.toFile());
 				message = Chat.success("Export cleaned and ready to upload: map exports/" + shown
@@ -576,6 +582,19 @@ public final class XaeroExport {
 					changed++;
 				}
 			}
+			if (job.mode != Mode.NOT_FOR_WEBMAP) {
+				offerForWebmap();
+			}
+			String folderNote = job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)";
+			String imageCount = left + (left == 1 ? " image" : " images");
+			String blackedOut = total.chunksBlackedOut() > 0
+					? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "";
+			job.line(Component.literal(VisitedChunks.displayName(key) + folderNote + ": " + total.chunksKept()
+					+ " chunks (" + changed + " new or changed), " + imageCount + blackedOut + "."));
+			job.nextDimension();
+		}
+
+		private void offerForWebmap() {
 			int number = VISITED.rememberExport(key, exported, job.writesAtStart);
 			List<Path> images;
 			try (Stream<Path> files = Files.list(folder)) {
@@ -589,7 +608,7 @@ public final class XaeroExport {
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
-				if (job.mode == Mode.EXPORT && WebmapUpload.forWebmap(upload.server())) {
+				if (WebmapUpload.forWebmap(upload.server())) {
 					WebmapUpload.remember(upload);
 					job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
 							"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
@@ -607,13 +626,6 @@ public final class XaeroExport {
 				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED,
 						"/visited clear others " + VisitedChunks.shortName(key), hover));
 			}
-			String folderNote = job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)";
-			String imageCount = left + (left == 1 ? " image" : " images");
-			String blackedOut = total.chunksBlackedOut() > 0
-					? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "";
-			job.line(Component.literal(VisitedChunks.displayName(key) + folderNote + ": " + total.chunksKept()
-					+ " chunks (" + changed + " new or changed), " + imageCount + blackedOut + "."));
-			job.nextDimension();
 		}
 
 		private String where() {
