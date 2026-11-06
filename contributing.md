@@ -38,6 +38,14 @@ to AOMC Webmapper):
 - `server/<address>/exports.txt`: the latest export of each dimension, until it's marked as uploaded.
 - `settings.properties`: whether the mod is on (`/visited on|off`) and whether the overlay is shown in Xaero.
 
+## Fabric and NeoForge
+
+`main` is Fabric 26.3 for AOMC Vanilla; `neoforge-1.21.1` is NeoForge 1.21.1 for AOMC Create. What differs
+between them lives in `Platform` (the entrypoint, loader events, and calls whose names changed between the
+Minecraft versions), `Target` (the server and webmap), the mixins (each built against its own Xaero) and the
+resources. Every other source file is the same on both branches: make a change on one branch, then copy the
+changed files to the other unchanged.
+
 ## Building
 
 - Minecraft 26.3, Fabric, Java 25 (set `JAVA_HOME` if Gradle picks an older one).
