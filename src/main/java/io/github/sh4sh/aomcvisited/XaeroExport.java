@@ -3,12 +3,9 @@ package io.github.sh4sh.aomcvisited;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -159,7 +156,7 @@ public final class XaeroExport {
 		int tiles = keys.stream().flatMap(key -> plan(key).stream()).mapToInt(ExportAreas.Box::tiles).sum();
 		ResourceKey<Level> showing = processor.getMapWorld().getCurrentDimensionId();
 		boolean switches = keys.stream().map(VisitedChunks::dimensionOf).distinct().count() > 1 || showing == null
-				|| !VisitedChunks.dimensionOf(keys.getFirst()).equals(showing.location().toString());
+				|| !VisitedChunks.dimensionOf(keys.getFirst()).equals(Platform.id(showing));
 		String switching = switches ? " Xaero's map switches dimension while it works, and the" : " The";
 		String freeze = tiles > LARGE_EXPORT_TILES
 				? " game may freeze for a while: this is a large export, up to " + tiles + " images."
@@ -275,8 +272,7 @@ public final class XaeroExport {
 				finish();
 				return;
 			}
-			target = ResourceKey.create(Registries.DIMENSION,
-					ResourceLocation.parse(VisitedChunks.dimensionOf(keys.get(dimension))));
+			target = Platform.dimension(VisitedChunks.dimensionOf(keys.get(dimension)));
 			processor.getMapWorld().setCustomDimensionId(target);
 			processor.checkForWorldUpdate();
 			stage(Stage.SWITCHING);
@@ -370,13 +366,13 @@ public final class XaeroExport {
 					WebmapUpload.start(client, List.copyOf(uploads));
 				}
 			} else if (anyImages && mode == Mode.NOT_FOR_WEBMAP) {
-				Util.getPlatform().openFile(root.toFile());
+				Platform.openFolder(root);
 				message = Chat.warning("Exported with your packs on, images not suitable for webmap upload: map exports/"
 						+ shown + ".");
 				message.append(report).append(Chat.buttons(Chat.openButton("Open folder", root)));
 				Chat.status(client, "export done, see chat.", ChatFormatting.GOLD);
 			} else if (anyImages) {
-				Util.getPlatform().openFile(root.toFile());
+				Platform.openFolder(root);
 				message = Chat.success("Export cleaned and ready to upload: map exports/" + shown
 						+ (keys.size() == 1 && run != null ? ". Upload it to the " + WebmapUpload.webmapName(run.key) + " map."
 								: ". Upload each dimension's folder to its own map."));
@@ -477,15 +473,15 @@ public final class XaeroExport {
 		private void closeScreenLater() {
 			ExportScreen screen = doneScreen;
 			job.client.execute(() -> {
-				if (job.client.screen == screen) {
-					job.client.setScreen(null);
+				if (Platform.screen(job.client) == screen) {
+					Platform.setScreen(job.client, null);
 				}
 			});
 		}
 
 		void continueAfterArea() {
-			if (job.client.screen == doneScreen) {
-				job.client.setScreen(null);
+			if (Platform.screen(job.client) == doneScreen) {
+				Platform.setScreen(job.client, null);
 			}
 			if (doneProblem != null) {
 				fail(doneProblem);
@@ -510,7 +506,7 @@ public final class XaeroExport {
 					exported.add(pos);
 				}
 			}
-			TileMasker.Recorded recorded = (x, z) -> chunks.contains(ChunkPos.asLong(x, z));
+			TileMasker.Recorded recorded = (x, z) -> chunks.contains(Platform.chunk(x, z));
 			boolean tiles = EXPORT_FOLDER.matcher(written.getFileName().toString()).matches();
 			Path image = null;
 			try {
@@ -518,7 +514,6 @@ public final class XaeroExport {
 					Path mapExports = tiles ? written.getParent() : written;
 					String dimension = job.keys.size() == 1 ? VisitedChunks.shortName(key) + "-" : "";
 					String server = VISITED.server();
-					// Grouped by server, like the records, so one server's exports can't be mistaken for another's.
 					String serverFolder = server == null ? "unknown" : server.substring(server.indexOf('/') + 1);
 					String exportFolder = "aomc-webmapper-" + dimension + LocalDateTime.now().format(FOLDER_TIME);
 					job.root = mapExports.resolve(serverFolder).resolve(exportFolder);
@@ -603,8 +598,7 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key,
-					number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key, number, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
