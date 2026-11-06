@@ -1,7 +1,9 @@
 package io.github.sh4sh.aomcvisited;
 
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The mixins' hooks into Xaero that didn't go in. A Xaero update can move the code they hook into; the mod then
@@ -12,6 +14,7 @@ public final class XaeroHooks {
 	private static final Set<String> EXPECTED = ConcurrentHashMap.newKeySet();
 	private static final Set<String> APPLIED = ConcurrentHashMap.newKeySet();
 	private static final Set<String> BROKEN = ConcurrentHashMap.newKeySet();
+	private static final Queue<Runnable> SCANS = new ConcurrentLinkedQueue<>();
 
 	private XaeroHooks() {
 	}
@@ -29,6 +32,11 @@ public final class XaeroHooks {
 		BROKEN.add(hook);
 	}
 
+	/** MixinExtras adds some hooks after the mixin is applied, so the patched class is scanned once it has loaded. */
+	public static void scanWhenLoaded(Runnable scan) {
+		SCANS.add(scan);
+	}
+
 	/** Mixins apply when a class loads, so this loads each class they hook into before the player joins. */
 	static void check() {
 		for (String target : TARGETS) {
@@ -37,6 +45,9 @@ public final class XaeroHooks {
 			} catch (ClassNotFoundException | LinkageError e) {
 				BROKEN.add(target);
 			}
+		}
+		for (Runnable scan; (scan = SCANS.poll()) != null; ) {
+			scan.run();
 		}
 		for (String mixin : EXPECTED) {
 			if (!APPLIED.contains(mixin)) {
