@@ -62,7 +62,9 @@ final class WebmapUpload {
 
 	static MutableComponent offHere() {
 		if (!XaeroHooks.working()) {
-			return Chat.warning("Doesn't work with this version of Xaero's World Map yet, so it's off. Check for an update.");
+			return Chat.warning("Doesn't work with this version of Xaero's World Map yet, so it's off.")
+					.append(Chat.line("Check for an update, or let us know on GitHub."))
+					.append(Chat.buttons(Chat.linkButton("Open GitHub", ISSUES)));
 		}
 		return Chat.info("Only works on the " + Target.SERVER_NAME + " server, so it's off here.");
 	}
