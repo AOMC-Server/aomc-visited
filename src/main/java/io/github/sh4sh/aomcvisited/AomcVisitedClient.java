@@ -39,9 +39,7 @@ public final class AomcVisitedClient {
 
 	static void left() {
 		VISITED.close();
-		if (xaeroInstalled()) {
-			XaeroExport.reset();
-		}
+		XaeroExport.reset();
 	}
 
 	static void stopping() {
@@ -49,11 +47,9 @@ public final class AomcVisitedClient {
 	}
 
 	static void tick(Minecraft client) {
-		if (xaeroInstalled()) {
-			XaeroExport.tick();
-			if (ticksSinceSave % 20 == 0) {
-				VisitedHighlighter.refreshChanged();
-			}
+		XaeroExport.tick();
+		if (ticksSinceSave % 20 == 0) {
+			VisitedHighlighter.refreshChanged();
 		}
 		VisitedCommands.tick(client);
 		if (reminderTicks > 0 && --reminderTicks == 0) {
@@ -117,10 +113,5 @@ public final class AomcVisitedClient {
 		}
 		long days = hours / 24;
 		return days == 1 ? "a day ago" : days + " days ago";
-	}
-
-	/** Classes that use Xaero ({@link XaeroExport}, {@link VisitedHighlighter}) may only load when this is true. */
-	static boolean xaeroInstalled() {
-		return Platform.isLoaded("xaeroworldmap");
 	}
 }
