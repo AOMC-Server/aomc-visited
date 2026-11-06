@@ -1,10 +1,8 @@
 package io.github.sh4sh.aomcvisited;
 
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -37,18 +35,19 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		registry.register(new VisitedHighlighter());
 	}
 
-	static void registerEvents() {
-		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-			// Our own export turns highlights off in the exporter: hiding them would make Xaero reload every region.
-			if (screen instanceof ExportScreen && !XaeroExport.active()) {
-				exportScreenOpen = true;
-				refreshAll();
-				ScreenEvents.remove(screen).register(removed -> {
-					exportScreenOpen = false;
-					refreshAll();
-				});
-			}
-		});
+	/** Our own export turns highlights off in the exporter: hiding them would make Xaero reload every region. */
+	static boolean exportScreenOpened(Screen screen) {
+		if (!(screen instanceof ExportScreen) || XaeroExport.active()) {
+			return false;
+		}
+		exportScreenOpen = true;
+		refreshAll();
+		return true;
+	}
+
+	static void exportScreenClosed() {
+		exportScreenOpen = false;
+		refreshAll();
 	}
 
 	private static int shownLayer = VisitedChunks.SURFACE_LAYER;
@@ -79,7 +78,7 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		}
 		changed.forEach((key, regions) -> {
 			MapDimension mapDimension = processor.getMapWorld()
-					.getDimension(ResourceKey.create(Registries.DIMENSION, Identifier.parse(VisitedChunks.dimensionOf(key))));
+					.getDimension(Platform.dimension(VisitedChunks.dimensionOf(key)));
 			if (mapDimension != null) {
 				regions.forEach(region -> mapDimension.getHighlightHandler()
 						.clearCachedHash(ChunkPos.getX(region), ChunkPos.getZ(region)));
@@ -105,7 +104,7 @@ public final class VisitedHighlighter extends ChunkHighlighter {
 		if (dimension != keyDimension || shownLayer != keyLayer) {
 			keyDimension = dimension;
 			keyLayer = shownLayer;
-			key = VisitedChunks.recordKey(dimension.identifier().toString(), shownLayer);
+			key = VisitedChunks.recordKey(Platform.id(dimension), shownLayer);
 		}
 		return key;
 	}

@@ -1,6 +1,5 @@
 package io.github.sh4sh.aomcvisited;
 
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -23,19 +22,14 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
-	static final String HOST = "map.diorite.xyz";
-	private static final String SERVER_NAME = "AOMC Vanilla";
+	static final String HOST = Target.HOST;
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
 	static final URI ISSUES = URI.create("https://github.com/AOMC-Server/aomc-visited/issues");
-	private static final Set<String> SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
-			"server/161.129.180.145_25565", "server/161.129.180.145");
 	private static final Set<String> KNOWN_SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
 			"server/161.129.180.145_25565", "server/161.129.180.145", "server/create.diorite.xyz",
 			"server/gw.algot.net_25037", "server/gw.algot.net_25030");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
-	private static final String USER_AGENT = "AOMC Webmapper/" + FabricLoader.getInstance()
-			.getModContainer(AomcVisitedClient.MOD_ID).map(mod -> mod.getMetadata().getVersion().getFriendlyString())
-			.orElse("unknown");
+	private static final String USER_AGENT = "AOMC Webmapper/" + Platform.modVersion();
 
 	/** This session's exports, by number, for their [Upload] buttons. */
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
@@ -64,11 +58,11 @@ final class WebmapUpload {
 	}
 
 	static boolean forWebmap(String server) {
-		return server != null && SERVERS.contains(server);
+		return server != null && Target.SERVERS.contains(server);
 	}
 
 	static MutableComponent offHere() {
-		return Chat.info("Only works on the " + SERVER_NAME + " server, so it's off here.");
+		return Chat.info("Only works on the " + Target.SERVER_NAME + " server, so it's off here.");
 	}
 
 	/** Why exports from this server can't be uploaded, or null if they can. */
@@ -77,7 +71,7 @@ final class WebmapUpload {
 			return null;
 		}
 		String name = server == null ? "this world" : server.substring(server.indexOf('/') + 1);
-		return Chat.error("Only maps of the " + SERVER_NAME + " server go to " + HOST + ". You're on " + name
+		return Chat.error("Only maps of the " + Target.SERVER_NAME + " server go to " + HOST + ". You're on " + name
 				+ ", so nothing is uploaded from here.");
 	}
 

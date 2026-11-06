@@ -1,11 +1,5 @@
 package io.github.sh4sh.aomcvisited;
 
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.MutableComponent;
@@ -16,48 +10,45 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class AomcVisitedClient implements ClientModInitializer {
+public final class AomcVisitedClient {
 	public static final String MOD_ID = "aomc_visited";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	private static final int AUTOSAVE_TICKS = 60 * 20;
 
 	public static final VisitedChunks VISITED =
-			new VisitedChunks(FabricLoader.getInstance().getGameDir().resolve(MOD_ID));
+			new VisitedChunks(Platform.gameDir().resolve(MOD_ID));
 	public static final Settings SETTINGS =
-			new Settings(FabricLoader.getInstance().getGameDir().resolve(MOD_ID).resolve("settings.properties"));
+			new Settings(Platform.gameDir().resolve(MOD_ID).resolve("settings.properties"));
 
-	private int ticksSinceSave;
-	private int reminderTicks;
+	private static int ticksSinceSave;
+	private static int reminderTicks;
 
 	private static final int REMINDER_DELAY_TICKS = 5 * 20;
 
-	@Override
-	public void onInitializeClient() {
-		ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
-			String server = VisitedChunks.serverKey(client);
-			if (WebmapUpload.forWebmap(server)) {
-				VISITED.open(server);
-			}
-			reminderTicks = REMINDER_DELAY_TICKS;
-		});
-		ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
-			VISITED.close();
-			if (xaeroInstalled()) {
-				XaeroExport.reset();
-			}
-		});
-		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> VISITED.close());
-		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> VisitedCommands.register(dispatcher));
-		if (xaeroInstalled()) {
-			VisitedHighlighter.registerEvents();
-		}
-
-		LOGGER.info("AOMC Webmapper loaded");
+	private AomcVisitedClient() {
 	}
 
-	private void tick(Minecraft client) {
+	static void joined(Minecraft client) {
+		String server = VisitedChunks.serverKey(client);
+		if (WebmapUpload.forWebmap(server)) {
+			VISITED.open(server);
+		}
+		reminderTicks = REMINDER_DELAY_TICKS;
+	}
+
+	static void left() {
+		VISITED.close();
+		if (xaeroInstalled()) {
+			XaeroExport.reset();
+		}
+	}
+
+	static void stopping() {
+		VISITED.close();
+	}
+
+	static void tick(Minecraft client) {
 		if (xaeroInstalled()) {
 			XaeroExport.tick();
 			if (ticksSinceSave % 20 == 0) {
@@ -130,6 +121,6 @@ public class AomcVisitedClient implements ClientModInitializer {
 
 	/** Classes that use Xaero ({@link XaeroExport}, {@link VisitedHighlighter}) may only load when this is true. */
 	static boolean xaeroInstalled() {
-		return FabricLoader.getInstance().isModLoaded("xaeroworldmap");
+		return Platform.isLoaded("xaeroworldmap");
 	}
 }

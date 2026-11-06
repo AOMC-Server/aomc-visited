@@ -1,6 +1,7 @@
 package io.github.sh4sh.aomcvisited;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
@@ -9,7 +10,6 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -23,8 +23,6 @@ import java.util.Map;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.SETTINGS;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.VISITED;
 import static io.github.sh4sh.aomcvisited.AomcVisitedClient.xaeroInstalled;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 final class VisitedCommands {
 	/** The export starts a tick after the command, once the chat screen has closed. */
@@ -36,25 +34,25 @@ final class VisitedCommands {
 	private VisitedCommands() {
 	}
 
-	static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
+	static void register(CommandDispatcher<Object> dispatcher) {
 		dispatcher.register(rootCommand("visited"));
 		dispatcher.register(rootCommand("webmapper"));
 	}
 
 	/** {@code /webmapper} is the same command under the mod's name; messages and buttons use {@code /visited}. */
-	private static LiteralArgumentBuilder<FabricClientCommandSource> rootCommand(String name) {
+	private static LiteralArgumentBuilder<Object> rootCommand(String name) {
 		return literal(name)
-				.executes(context -> showCounts(context.getSource()))
+				.executes(context -> showCounts())
 				.then(exportCommand())
 				.then(uploadCommand())
 				.then(clearCommand())
 				.then(markUploadedCommand())
-				.then(literal("on").executes(context -> setEnabled(context.getSource(), true)))
-				.then(literal("off").executes(context -> setEnabled(context.getSource(), false)))
+				.then(literal("on").executes(context -> setEnabled(true)))
+				.then(literal("off").executes(context -> setEnabled(false)))
 				.then(overlayCommand());
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> exportCommand() {
+	private static LiteralArgumentBuilder<Object> exportCommand() {
 		return exportOptions(literal("export"), context -> ExportTarget.EVERYTHING)
 				.then(exportOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
 				.then(exportOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
@@ -62,43 +60,56 @@ final class VisitedCommands {
 				.then(literal("record").then(exportOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))));
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> uploadCommand() {
+	private static LiteralArgumentBuilder<Object> uploadCommand() {
 		return uploadOptions(literal("upload"), context -> ExportTarget.EVERYTHING)
 				.then(uploadOptions(literal("overworld"), context -> ExportTarget.ofDimension("minecraft:overworld")))
 				.then(uploadOptions(literal("the_nether"), context -> ExportTarget.ofDimension("minecraft:the_nether")))
 				.then(uploadOptions(literal("the_end"), context -> ExportTarget.ofDimension("minecraft:the_end")))
 				.then(literal("record").then(uploadOptions(recordArgument(), context -> ExportTarget.ofRecord(record(context)))))
 				.then(confirmable(exportArgument(),
-						(context, confirmed) -> uploadExport(context.getSource(), exportNumber(context), confirmed)));
+						(context, confirmed) -> uploadExport(exportNumber(context), confirmed)));
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> clearCommand() {
-		return confirmable(literal("clear"), (context, confirmed) -> clear(context.getSource(), confirmed))
-				.then(confirmable(literal("all"), (context, confirmed) -> clearAll(context.getSource(), confirmed)))
+	private static LiteralArgumentBuilder<Object> clearCommand() {
+		return confirmable(literal("clear"), (context, confirmed) -> clear(confirmed))
+				.then(confirmable(literal("all"), (context, confirmed) -> clearAll(confirmed)))
 				.then(literal("others").then(confirmable(recordArgument(),
-						(context, confirmed) -> clearOthers(context.getSource(), record(context), confirmed))));
+						(context, confirmed) -> clearOthers(record(context), confirmed))));
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> markUploadedCommand() {
+	private static LiteralArgumentBuilder<Object> markUploadedCommand() {
 		return literal("mark-uploaded")
-				.executes(context -> markUploaded(context.getSource(), VISITED.latestExport()))
-				.then(exportArgument().executes(context -> markUploaded(context.getSource(), exportNumber(context))));
+				.executes(context -> markUploaded(VISITED.latestExport()))
+				.then(exportArgument().executes(context -> markUploaded(exportNumber(context))));
 	}
 
-	private static LiteralArgumentBuilder<FabricClientCommandSource> overlayCommand() {
+	private static LiteralArgumentBuilder<Object> overlayCommand() {
 		return literal("overlay")
-				.executes(context -> setShow(context.getSource(), !SETTINGS.showOnMap()))
-				.then(literal("on").executes(context -> setShow(context.getSource(), true)))
-				.then(literal("off").executes(context -> setShow(context.getSource(), false)));
+				.executes(context -> setShow(!SETTINGS.showOnMap()))
+				.then(literal("on").executes(context -> setShow(true)))
+				.then(literal("off").executes(context -> setShow(false)));
 	}
 
-	private static boolean unavailable(FabricClientCommandSource source) {
+	private static boolean unavailable() {
 		if (VISITED.server() != null) {
 			return false;
 		}
-		source.sendFeedback(Minecraft.getInstance().getConnection() == null
+		reply(Minecraft.getInstance().getConnection() == null
 				? Chat.error("Not connected to a world.") : WebmapUpload.offHere());
 		return true;
+	}
+
+	/** Replies go to chat, so no command reads its source: the same tree works for both loaders' source types. */
+	private static LiteralArgumentBuilder<Object> literal(String name) {
+		return LiteralArgumentBuilder.literal(name);
+	}
+
+	private static <T> RequiredArgumentBuilder<Object, T> argument(String name, ArgumentType<T> type) {
+		return RequiredArgumentBuilder.argument(name, type);
+	}
+
+	private static void reply(Component message) {
+		Chat.send(Minecraft.getInstance(), message);
 	}
 
 	static void tick(Minecraft client) {
@@ -112,8 +123,8 @@ final class VisitedCommands {
 		}
 	}
 
-	private static int showCounts(FabricClientCommandSource source) {
-		if (unavailable(source)) {
+	private static int showCounts() {
+		if (unavailable()) {
 			return 0;
 		}
 		String server = VISITED.server();
@@ -132,18 +143,18 @@ final class VisitedCommands {
 			}
 			message.append(Chat.line(line));
 		});
-		source.sendFeedback(message);
+		reply(message);
 		return 1;
 	}
 
-	private static int clear(FabricClientCommandSource source, boolean confirm) {
-		if (unavailable(source) || Minecraft.getInstance().level == null) {
+	private static int clear(boolean confirm) {
+		if (unavailable() || Minecraft.getInstance().level == null) {
 			return 0;
 		}
 		ResourceKey<Level> dimension = Minecraft.getInstance().level.dimension();
-		String id = dimension.identifier().toString();
+		String id = Platform.id(dimension);
 		if (!confirm) {
-			source.sendFeedback(Chat.warning("This will forget the " + VISITED.count(dimension) + " chunks"
+			reply(Chat.warning("This will forget the " + VISITED.count(dimension) + " chunks"
 					+ " recorded in " + id + ", so the next export starts from scratch.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear confirm",
 							"Forget the record for " + id))));
@@ -151,42 +162,42 @@ final class VisitedCommands {
 		}
 		int forgotten = VISITED.clear(dimension);
 		refreshOverlay();
-		source.sendFeedback(Chat.success("Forgot " + forgotten + " chunks recorded in " + id + ".")
+		reply(Chat.success("Forgot " + forgotten + " chunks recorded in " + id + ".")
 				.append(Chat.line("Zoomed-out world map views may show the old tint until you zoom in on them once.")));
 		return 1;
 	}
 
-	private static int clearOthers(FabricClientCommandSource source, String record, boolean confirm) {
-		if (unavailable(source)) {
+	private static int clearOthers(String record, boolean confirm) {
+		if (unavailable()) {
 			return 0;
 		}
 		List<String> others = XaeroExport.sameMap(record);
 		String map = WebmapUpload.webmapName(record);
 		if (others.isEmpty()) {
-			source.sendFeedback(Chat.info("Nothing else recorded goes to the " + map + " map."));
+			reply(Chat.info("Nothing else recorded goes to the " + map + " map."));
 			return 1;
 		}
 		String names = VisitedChunks.displayNames(others);
 		if (!confirm) {
 			int total = others.stream().mapToInt(VISITED::size).sum();
-			source.sendFeedback(Chat.warning("This will forget the " + total + " chunks recorded in " + names + ".")
+			reply(Chat.warning("This will forget the " + total + " chunks recorded in " + names + ".")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear others "
 							+ VisitedChunks.shortName(record) + " confirm", "Forget " + names))));
 			return 1;
 		}
 		int forgotten = others.stream().mapToInt(VISITED::clearRecord).sum();
 		refreshOverlay();
-		source.sendFeedback(Chat.success("Forgot " + forgotten + " chunks recorded in " + names + "."));
+		reply(Chat.success("Forgot " + forgotten + " chunks recorded in " + names + "."));
 		return 1;
 	}
 
-	private static int clearAll(FabricClientCommandSource source, boolean confirm) {
-		if (unavailable(source)) {
+	private static int clearAll(boolean confirm) {
+		if (unavailable()) {
 			return 0;
 		}
 		if (!confirm) {
 			int total = VISITED.counts().values().stream().mapToInt(Integer::intValue).sum();
-			source.sendFeedback(Chat.warning("This will forget all " + total + " chunks recorded on this server,"
+			reply(Chat.warning("This will forget all " + total + " chunks recorded on this server,"
 					+ " in every dimension, so the next export starts from scratch.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear all confirm",
 							"Forget the record in every dimension"))));
@@ -194,46 +205,46 @@ final class VisitedCommands {
 		}
 		int forgotten = VISITED.clearAll();
 		refreshOverlay();
-		source.sendFeedback(Chat.success("Forgot " + forgotten + " chunks in every dimension.")
+		reply(Chat.success("Forgot " + forgotten + " chunks in every dimension.")
 				.append(Chat.line("Zoomed-out world map views may show the old tint until you zoom in on them once.")));
 		return 1;
 	}
 
-	private static int markUploaded(FabricClientCommandSource source, int export) {
-		if (unavailable(source)) {
+	private static int markUploaded(int export) {
+		if (unavailable()) {
 			return 0;
 		}
 		if (export < 0) {
-			source.sendFeedback(Chat.error("There's no export to mark as uploaded. To start over, use /visited"
+			reply(Chat.error("There's no export to mark as uploaded. To start over, use /visited"
 					+ " clear."));
 			return 0;
 		}
 		int forgotten = VISITED.markUploaded(export);
 		if (forgotten < 0) {
-			source.sendFeedback(Chat.error("That export was already marked as uploaded, or its record was cleared"
+			reply(Chat.error("That export was already marked as uploaded, or its record was cleared"
 					+ " since. To start over, use /visited clear."));
 			return 0;
 		}
 		refreshOverlay();
-		source.sendFeedback(Chat.success("Marked as uploaded: forgot " + forgotten + " chunks.")
+		reply(Chat.success("Marked as uploaded: forgot " + forgotten + " chunks.")
 				.append(Chat.line("Anything that changed since that export is kept for the next one.")));
 		return 1;
 	}
 
-	private static int setEnabled(FabricClientCommandSource source, boolean enabled) {
+	private static int setEnabled(boolean enabled) {
 		SETTINGS.setEnabled(enabled);
 		refreshOverlay();
-		source.sendFeedback(Chat.info(enabled
+		reply(Chat.info(enabled
 				? "AOMC Webmapper is on: recording what Xaero's World Map maps. Turn it off with /visited off."
 				: "AOMC Webmapper is off: nothing is recorded or shown, and what's already recorded is kept. Turn it"
 						+ " back on with /visited on."));
 		return 1;
 	}
 
-	private static int setShow(FabricClientCommandSource source, boolean show) {
+	private static int setShow(boolean show) {
 		SETTINGS.setShowOnMap(show);
 		refreshOverlay();
-		source.sendFeedback(Chat.info(show
+		reply(Chat.info(show
 				? "Showing what the next export will keep on Xaero's World Map. Hide it with /visited overlay off."
 				: "No longer showing the record on Xaero's World Map. Show it again with /visited overlay on."));
 		return 1;
@@ -241,15 +252,15 @@ final class VisitedCommands {
 
 	/** Reads the export target from the command, which may name a record. */
 	private interface TargetArgument {
-		ExportTarget get(CommandContext<FabricClientCommandSource> context) throws CommandSyntaxException;
+		ExportTarget get(CommandContext<Object> context) throws CommandSyntaxException;
 	}
 
 	/** A command that asks first, and runs under {@code confirm}. */
 	private interface Confirmable {
-		int run(CommandContext<FabricClientCommandSource> context, boolean confirmed) throws CommandSyntaxException;
+		int run(CommandContext<Object> context, boolean confirmed) throws CommandSyntaxException;
 	}
 
-	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S confirmable(S command, Confirmable action) {
+	private static <S extends ArgumentBuilder<Object, S>> S confirmable(S command, Confirmable action) {
 		return command.executes(context -> action.run(context, false))
 				.then(literal("confirm").executes(context -> action.run(context, true)));
 	}
@@ -258,11 +269,11 @@ final class VisitedCommands {
 		return "/visited " + verb + " record " + VisitedChunks.shortName(key);
 	}
 
-	private static RequiredArgumentBuilder<FabricClientCommandSource, String> recordArgument() {
+	private static RequiredArgumentBuilder<Object, String> recordArgument() {
 		return argument("name", StringArgumentType.word());
 	}
 
-	private static String record(CommandContext<FabricClientCommandSource> context) throws CommandSyntaxException {
+	private static String record(CommandContext<Object> context) throws CommandSyntaxException {
 		String name = StringArgumentType.getString(context, "name");
 		String key = VisitedChunks.keyOf(name);
 		if (key == null) {
@@ -271,49 +282,49 @@ final class VisitedCommands {
 		return key;
 	}
 
-	private static RequiredArgumentBuilder<FabricClientCommandSource, Integer> exportArgument() {
+	private static RequiredArgumentBuilder<Object, Integer> exportArgument() {
 		return argument("export", IntegerArgumentType.integer(1));
 	}
 
-	private static int exportNumber(CommandContext<FabricClientCommandSource> context) {
+	private static int exportNumber(CommandContext<Object> context) {
 		return IntegerArgumentType.getInteger(context, "export");
 	}
 
-	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S exportOptions(
+	private static <S extends ArgumentBuilder<Object, S>> S exportOptions(
 			S command, TargetArgument target) {
-		return command.executes(context -> requestExport(context.getSource(), target.get(context), false))
+		return command.executes(context -> requestExport(target.get(context), false))
 				.then(literal("not-for-webmap").executes(context ->
-						requestExport(context.getSource(), target.get(context), true)))
+						requestExport(target.get(context), true)))
 				.then(literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), target.get(context), false)));
+						exportWithoutPacks(target.get(context), false)));
 	}
 
-	private static <S extends ArgumentBuilder<FabricClientCommandSource, S>> S uploadOptions(
+	private static <S extends ArgumentBuilder<Object, S>> S uploadOptions(
 			S command, TargetArgument target) {
 		return confirmable(command,
-				(context, confirmed) -> requestUpload(context.getSource(), target.get(context), confirmed))
+				(context, confirmed) -> requestUpload(target.get(context), confirmed))
 				.then(literal("without-packs").executes(context ->
-						exportWithoutPacks(context.getSource(), target.get(context), true)));
+						exportWithoutPacks(target.get(context), true)));
 	}
 
 	/** {@code /visited upload [<dimension>|record <name>]}: exports, then uploads to the webmap and marks as uploaded. */
-	private static int requestUpload(FabricClientCommandSource source, ExportTarget target, boolean confirmed) {
-		if (unavailable(source)) {
+	private static int requestUpload(ExportTarget target, boolean confirmed) {
+		if (unavailable()) {
 			return 0;
 		}
 		if (!xaeroInstalled()) {
-			source.sendFeedback(Chat.error("Uploading needs Xaero's World Map."));
+			reply(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
 		}
 		if (WebmapUpload.running()) {
-			source.sendFeedback(Chat.error("An upload is already running."));
+			reply(Chat.error("An upload is already running."));
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited upload" + target.commandSuffix();
 		String what = target.description();
 		if (!packs.isEmpty()) {
-			source.sendFeedback(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
+			reply(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
 					+ " an upload. These are on:")
 					.append(Chat.line(String.join(", ", packs)))
 					.append(Chat.buttons(Chat.button("Turn packs off and upload", ChatFormatting.GREEN,
@@ -322,7 +333,7 @@ final class VisitedCommands {
 			return 0;
 		}
 		if (!confirmed) {
-			source.sendFeedback(Chat.info("Export and upload " + what + " to " + WebmapUpload.HOST + "? It's marked as"
+			reply(Chat.info("Export and upload " + what + " to " + WebmapUpload.HOST + "? It's marked as"
 					+ " uploaded once the webmap has processed it.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, command + " confirm",
 							"Export and upload " + what))));
@@ -333,30 +344,30 @@ final class VisitedCommands {
 	}
 
 	/** {@code /visited upload <export>}: the [Upload] button on an export made this session. */
-	private static int uploadExport(FabricClientCommandSource source, int number, boolean confirmed) {
-		if (unavailable(source)) {
+	private static int uploadExport(int number, boolean confirmed) {
+		if (unavailable()) {
 			return 0;
 		}
 		WebmapUpload.Dimension export = WebmapUpload.export(number);
 		if (export == null) {
-			source.sendFeedback(Chat.error("That export's images aren't known any more: it's from an earlier session,"
+			reply(Chat.error("That export's images aren't known any more: it's from an earlier session,"
 					+ " or a newer export replaced it. Use /visited upload to export and upload again."));
 			return 0;
 		}
 		if (WebmapUpload.running()) {
-			source.sendFeedback(Chat.error("An upload is already running."));
+			reply(Chat.error("An upload is already running."));
 			return 0;
 		}
 		String what = export.images().size() + " images to the " + export.map() + " map";
 		if (!confirmed) {
-			source.sendFeedback(Chat.info("Upload " + what + " on " + WebmapUpload.HOST + "? They're marked as uploaded once"
+			reply(Chat.info("Upload " + what + " on " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
 					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
 							+ " confirm", "Upload " + what))));
 			return 1;
 		}
 		if (!export.images().stream().allMatch(java.nio.file.Files::isRegularFile)) {
-			source.sendFeedback(Chat.error("Some of that export's images were moved or deleted. Use /visited upload"
+			reply(Chat.error("Some of that export's images were moved or deleted. Use /visited upload"
 					+ " to export and upload again."));
 			return 0;
 		}
@@ -364,18 +375,18 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static int requestExport(FabricClientCommandSource source, ExportTarget target, boolean withPacks) {
-		if (unavailable(source)) {
+	private static int requestExport(ExportTarget target, boolean withPacks) {
+		if (unavailable()) {
 			return 0;
 		}
 		if (!xaeroInstalled()) {
-			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
+			reply(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited export" + target.commandSuffix();
 		if (!packs.isEmpty() && !withPacks) {
-			source.sendFeedback(Chat.warning("Resource packs change the colours of the exported map. These are on:")
+			reply(Chat.warning("Resource packs change the colours of the exported map. These are on:")
 					.append(Chat.line(String.join(", ", packs)))
 					.append(Chat.buttons(
 							Chat.button("Turn packs off for the export", ChatFormatting.GREEN, command + " without-packs",
@@ -391,20 +402,20 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	private static int exportWithoutPacks(FabricClientCommandSource source, ExportTarget target, boolean upload) {
-		if (unavailable(source)) {
+	private static int exportWithoutPacks(ExportTarget target, boolean upload) {
+		if (unavailable()) {
 			return 0;
 		}
 		if (!xaeroInstalled()) {
-			source.sendFeedback(Chat.error("Exporting needs Xaero's World Map."));
+			reply(Chat.error("Exporting needs Xaero's World Map."));
 			return 0;
 		}
 		if (XaeroExport.active()) {
-			source.sendFeedback(Chat.error("An export is already running."));
+			reply(Chat.error("An export is already running."));
 			return 0;
 		}
 		if (upload && WebmapUpload.running()) {
-			source.sendFeedback(Chat.error("An upload is already running."));
+			reply(Chat.error("An upload is already running."));
 			return 0;
 		}
 		Minecraft client = Minecraft.getInstance();
@@ -413,7 +424,7 @@ final class VisitedCommands {
 			pending = new PendingExport(target, mode);
 			return 1;
 		}
-		source.sendFeedback(Chat.info("Turning your resource packs off for the export. They'll come back on"
+		reply(Chat.info("Turning your resource packs off for the export. They'll come back on"
 				+ " afterwards, in the same order.")
 				.append(Chat.line("Right after turning packs off, Xaero can take up to a minute to export, and the"
 						+ " game may freeze meanwhile.")));

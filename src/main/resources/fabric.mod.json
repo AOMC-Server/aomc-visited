@@ -11,7 +11,7 @@
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"io.github.sh4sh.aomcvisited.AomcVisitedClient"
+			"io.github.sh4sh.aomcvisited.Platform"
 		]
 	},
 	"mixins": [

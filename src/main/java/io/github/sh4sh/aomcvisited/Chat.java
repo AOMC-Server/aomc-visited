@@ -3,9 +3,7 @@ package io.github.sh4sh.aomcvisited;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
 
@@ -51,22 +49,22 @@ public final class Chat {
 	public static MutableComponent button(String label, ChatFormatting colour, String command, String hover) {
 		return Component.literal("[" + label + "]").withStyle(style -> style
 				.withColor(colour)
-				.withClickEvent(new ClickEvent.RunCommand(command))
-				.withHoverEvent(new HoverEvent.ShowText(Component.literal(hover))));
+				.withClickEvent(Platform.runCommand(command))
+				.withHoverEvent(Platform.showText(hover)));
 	}
 
 	public static MutableComponent openButton(String label, Path path) {
 		return Component.literal("[" + label + "]").withStyle(style -> style
 				.withColor(ChatFormatting.AQUA)
-				.withClickEvent(new ClickEvent.OpenFile(path))
-				.withHoverEvent(new HoverEvent.ShowText(Component.literal(path.toString()))));
+				.withClickEvent(Platform.openFile(path))
+				.withHoverEvent(Platform.showText(path.toString())));
 	}
 
 	public static MutableComponent linkButton(String label, URI uri) {
 		return Component.literal("[" + label + "]").withStyle(style -> style
 				.withColor(ChatFormatting.AQUA)
-				.withClickEvent(new ClickEvent.OpenUrl(uri))
-				.withHoverEvent(new HoverEvent.ShowText(Component.literal(uri.toString()))));
+				.withClickEvent(Platform.openUrl(uri))
+				.withHoverEvent(Platform.showText(uri.toString())));
 	}
 
 	/** Minecraft chat can't centre text, so this pads with spaces for the chat's current width. */
@@ -98,7 +96,7 @@ public final class Chat {
 
 	public static void status(Minecraft client, String text, ChatFormatting colour) {
 		if (client.player != null) {
-			client.player.sendOverlayMessage(Component.literal(NAME + ": ").withStyle(ChatFormatting.DARK_AQUA)
+			Platform.showStatus(client.player, Component.literal(NAME + ": ").withStyle(ChatFormatting.DARK_AQUA)
 					.append(Component.literal(text).withStyle(colour)));
 		}
 	}
