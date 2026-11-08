@@ -20,12 +20,17 @@ public final class XaeroHooks {
 	}
 
 	public static void expect(String mixin, String target) {
-		EXPECTED.add(mixin);
+		EXPECTED.add(simpleName(mixin));
 		TARGETS.add(target.replace('/', '.'));
 	}
 
 	public static void applied(String mixin) {
-		APPLIED.add(mixin);
+		APPLIED.add(simpleName(mixin));
+	}
+
+	/** Mixin's error handlers only give the mixin's simple name. */
+	private static String simpleName(String mixin) {
+		return mixin.substring(mixin.lastIndexOf('.') + 1);
 	}
 
 	public static void broken(String hook) {
