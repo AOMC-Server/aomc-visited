@@ -100,9 +100,9 @@ public final class AomcVisitedClient {
 		}
 		message.append(Chat.line("If you keep playing, your next upload includes it."));
 		Chat.send(client, message.append(Chat.buttons(
-				Chat.button("Upload it now", ChatFormatting.GREEN, "/visited upload",
+				Chat.button("Upload it now", ChatFormatting.GREEN, "/webmapper upload",
 						"Upload it now, or later: it stays in the record either way (asks to confirm first)"),
-				Chat.button("Clear old session", ChatFormatting.RED, "/visited clear all",
+				Chat.button("Clear old session", ChatFormatting.RED, "/webmapper clear all",
 						"Forget it in every dimension (asks to confirm)"))));
 	}
 
