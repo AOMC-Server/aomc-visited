@@ -41,7 +41,7 @@ can choose to continue with the last session or clear the data to start a new se
 | `/webmapper clear` | Forget what's recorded in your current dimension (asks to confirm) |
 | `/webmapper clear all` | Forget everything recorded on this server (asks to confirm) |
 
-`/visted` works the same as `/webmapper`, e.g. `/visited upload`.
+`/visited` works the same as `/webmapper`, e.g. `/visited upload`.
 
 ## Building
 
