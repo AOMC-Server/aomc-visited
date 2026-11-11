@@ -19,9 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.ZoneId;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,7 +46,8 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	record Dimension(String server, String key, int export, List<Path> images) {
+	/** {@code root} is the export's dated folder, which {@code images} are in or below. */
+	record Dimension(String server, String key, int export, Path root, List<Path> images) {
 		String map() {
 			return webmapName(key);
 		}
@@ -91,6 +90,17 @@ final class WebmapUpload {
 		return running;
 	}
 
+	/** Why an upload can't start now, or null if it can. */
+	static Component cannotStart() {
+		if (running) {
+			return Chat.error("An upload is already running.");
+		}
+		if (AomcVisitedClient.SETTINGS.webmapToken() == null) {
+			return needsToken();
+		}
+		return null;
+	}
+
 	/** Null if the webmap has no map for it. */
 	static String webmapName(String key) {
 		return switch (VisitedChunks.dimensionOf(key)) {
@@ -113,8 +123,9 @@ final class WebmapUpload {
 				return;
 			}
 		}
-		if (AomcVisitedClient.SETTINGS.webmapToken() == null) {
-			Chat.send(client, needsToken());
+		Component problem = cannotStart();
+		if (problem != null) {
+			Chat.send(client, problem);
 			return;
 		}
 		running = true;
@@ -160,13 +171,14 @@ final class WebmapUpload {
 	 */
 	private static String uploadDimension(Minecraft client, Dimension dimension, String token)
 			throws IOException, InterruptedException {
+		// The webmap dates each image by its path and counts undated ones as made now; tiles have no date in their names.
+		if (!EXPORT_TIME.matcher(dimension.root().getFileName().toString()).find()) {
+			return dimension.root().getFileName() + " has no date in its name, so the webmap would date the images now";
+		}
 		List<String> paths = new ArrayList<>();
 		for (Path image : dimension.images()) {
-			String path = exportPath(image);
-			if (path == null) {
-				return image.getFileName() + " isn't in a dated export folder, so the webmap would date it now";
-			}
-			paths.add(path);
+			paths.add(dimension.root().getFileName() + "/"
+					+ dimension.root().relativize(image).toString().replace('\\', '/'));
 		}
 		String boundary = "aomcwebmapper" + UUID.randomUUID().toString().replace("-", "");
 		List<HttpRequest.BodyPublisher> parts = new ArrayList<>();
@@ -197,24 +209,6 @@ final class WebmapUpload {
 			String problem = follow(client, revision.getAsLong(), token);
 			if (problem != null) {
 				return problem;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * The image's path from its export folder down, which the webmap reads the export date from: tiles have
-	 * none in their own names. Null if no folder above it is dated.
-	 */
-	private static String exportPath(Path image) {
-		Deque<String> names = new ArrayDeque<>();
-		names.push(image.getFileName().toString());
-		for (Path folder = image.getParent(); folder != null && folder.getFileName() != null;
-				folder = folder.getParent()) {
-			String name = folder.getFileName().toString();
-			names.push(name);
-			if (EXPORT_TIME.matcher(name).find()) {
-				return String.join("/", names);
 			}
 		}
 		return null;

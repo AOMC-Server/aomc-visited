@@ -346,12 +346,9 @@ final class VisitedCommands {
 			reply(Chat.error("Uploading needs Xaero's World Map."));
 			return 0;
 		}
-		if (WebmapUpload.running()) {
-			reply(Chat.error("An upload is already running."));
-			return 0;
-		}
-		if (SETTINGS.webmapToken() == null) {
-			reply(WebmapUpload.needsToken());
+		Component problem = WebmapUpload.cannotStart();
+		if (problem != null) {
+			reply(problem);
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
@@ -388,12 +385,9 @@ final class VisitedCommands {
 					+ " or a newer export replaced it. Use /visited upload to export and upload again."));
 			return 0;
 		}
-		if (WebmapUpload.running()) {
-			reply(Chat.error("An upload is already running."));
-			return 0;
-		}
-		if (SETTINGS.webmapToken() == null) {
-			reply(WebmapUpload.needsToken());
+		Component problem = WebmapUpload.cannotStart();
+		if (problem != null) {
+			reply(problem);
 			return 0;
 		}
 		String what = export.images().size() + " images to the " + export.map() + " map";
@@ -452,8 +446,9 @@ final class VisitedCommands {
 			reply(Chat.error("An export is already running."));
 			return 0;
 		}
-		if (upload && WebmapUpload.running()) {
-			reply(Chat.error("An upload is already running."));
+		Component problem = upload ? WebmapUpload.cannotStart() : null;
+		if (problem != null) {
+			reply(problem);
 			return 0;
 		}
 		Minecraft client = Minecraft.getInstance();
