@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -279,6 +280,10 @@ final class WebmapUpload {
 		} catch (RuntimeException e) {
 			// No JSON error: the status code alone will do.
 		}
+		if (response.statusCode() == 403) {
+			return "the webmap refused it" + (error == null ? "" : " (" + error + ")")
+					+ ". Please check your token's configuration on " + TOKEN_PAGE;
+		}
 		return "the webmap answered HTTP " + response.statusCode() + (error == null ? "" : ": " + error);
 	}
 
@@ -289,12 +294,18 @@ final class WebmapUpload {
 			try {
 				HttpResponse<String> response = HTTP.send(api("api/me", token).timeout(Duration.ofSeconds(30))
 						.GET().build(), HttpResponse.BodyHandlers.ofString());
-				JsonElement user = response.statusCode() == 200
-						? JsonParser.parseString(response.body()).getAsJsonObject().get("user") : null;
-				message = user != null && user.isJsonObject()
-						? Chat.success("Token saved. Uploads to " + HOST + " go in as "
-								+ user.getAsJsonObject().get("username").getAsString() + ".")
-						: Chat.error("Token saved, but " + HOST + " didn't accept it. Check you copied all of it.");
+				JsonObject me = response.statusCode() == 200 ? JsonParser.parseString(response.body()).getAsJsonObject() : null;
+				JsonElement user = me == null ? null : me.get("user");
+				JsonElement scopes = me == null ? null : me.get("scopes");
+				if (user == null || !user.isJsonObject()) {
+					message = Chat.error("Token saved, but " + HOST + " didn't accept it. Check you copied all of it.");
+				} else if (scopes != null && scopes.isJsonArray() && !scopes.getAsJsonArray().contains(new JsonPrimitive("upload"))) {
+					message = Chat.error("Token saved, but it isn't allowed to upload. Please check your token's"
+							+ " configuration on " + TOKEN_PAGE + ".");
+				} else {
+					message = Chat.success("Token saved. Uploads to " + HOST + " go in as "
+							+ user.getAsJsonObject().get("username").getAsString() + ".");
+				}
 			} catch (IOException | RuntimeException e) {
 				AomcVisitedClient.LOGGER.error("Could not check the webmap token", e);
 				message = Chat.warning("Token saved, but " + HOST + " couldn't be reached to check it.");
