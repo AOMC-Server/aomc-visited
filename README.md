@@ -13,11 +13,11 @@ Requires Xaero World Map. Built against Xaero World Map v1.47.0 for NeoForge 1.2
 
 1. Open the world map to see areas the mod has recorded: green outline around areas the export will include,
    green fill on areas that are new or changed.
-2. When you're done, type **`/visited upload`**. It exports every dimension you've been in (the game may
+2. When you're done, type **`/webmapper upload`**. It exports every dimension you've been in (the game may
    freeze for a few seconds), uploads the images to the webmap, and **marks them as uploaded** once the
    webmap has processed them, so your next upload only contains new areas.
 
-To check the images before uploading, use **`/visited export`** instead: it opens the exports folder, and
+To check the images before uploading, use **`/webmapper export`** instead: it opens the exports folder, and
 the chat message has an **[Upload]** button per dimension. You can also upload the images yourself on the
 webmap, then click **[Mark as uploaded]**.
 
@@ -32,16 +32,16 @@ can choose to continue with the last session or clear the data to start a new se
 
 | Command | What it does |
 |---|---|
-| `/visited` | How many chunks are recorded in each dimension |
-| `/visited upload [overworld\|the_nether\|the_end]` | Export, upload to the webmap, and mark as uploaded (asks to confirm) |
-| `/visited export [overworld\|the_nether\|the_end]` | Export what you've mapped, cleaned and ready to upload |
-| `/visited mark-uploaded` | Mark the latest export as uploaded (same as the button) |
-| `/visited on\|off` | Turn the mod on or off: when off, nothing is recorded or shown |
-| `/visited overlay on\|off` | Show or hide the green overlay on Xaero's map |
-| `/visited clear` | Forget what's recorded in your current dimension (asks to confirm) |
-| `/visited clear all` | Forget everything recorded on this server (asks to confirm) |
+| `/webmapper` | How many chunks are recorded in each dimension |
+| `/webmapper upload [overworld\|the_nether\|the_end]` | Export, upload to the webmap, and mark as uploaded (asks to confirm) |
+| `/webmapper export [overworld\|the_nether\|the_end]` | Export what you've mapped, cleaned and ready to upload |
+| `/webmapper mark-uploaded` | Mark the latest export as uploaded (same as the button) |
+| `/webmapper on\|off` | Turn the mod on or off: when off, nothing is recorded or shown |
+| `/webmapper overlay on\|off` | Show or hide the green overlay on Xaero's map |
+| `/webmapper clear` | Forget what's recorded in your current dimension (asks to confirm) |
+| `/webmapper clear all` | Forget everything recorded on this server (asks to confirm) |
 
-`/webmapper` works the same as `/visited`, e.g. `/webmapper upload`.
+`/visted` works the same as `/webmapper`, e.g. `/visited upload`.
 
 ## Building
 
