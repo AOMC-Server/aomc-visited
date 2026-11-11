@@ -149,27 +149,31 @@ final class VisitedCommands {
 		return 1;
 	}
 
-	/** Each command as shown, what it does, and what clicking it puts in the chat box. */
-	private static final String[][] HELP = {
-			{"/webmapper", "how much is recorded, with Export and Upload buttons", "/webmapper"},
-			{"/webmapper upload [dimension]", "export, upload to the webmap, and mark as uploaded", "/webmapper upload "},
-			{"/webmapper export [dimension]", "export only, to check the images before uploading", "/webmapper export "},
-			{"/webmapper mark-uploaded", "mark the latest export as uploaded, after uploading it by hand",
-					"/webmapper mark-uploaded"},
-			{"/webmapper overlay on|off", "show or hide the green overlay on Xaero's map", "/webmapper overlay "},
-			{"/webmapper clear [all]", "forget what's recorded in this dimension, or on this server", "/webmapper clear "},
-			{"/webmapper on|off", "turn the mod on or off", "/webmapper "},
-	};
+	private record HelpLine(String shown, String what, String suggested) {
+	}
+
+	private static final List<HelpLine> HELP = List.of(
+			new HelpLine("/webmapper", "how much is recorded, with Export and Upload buttons", "/webmapper"),
+			new HelpLine("/webmapper upload [dimension]", "export, upload to the webmap, and mark as uploaded",
+					"/webmapper upload "),
+			new HelpLine("/webmapper export [dimension]", "export only, to check the images before uploading",
+					"/webmapper export "),
+			new HelpLine("/webmapper mark-uploaded", "mark the latest export as uploaded, after uploading it by hand",
+					"/webmapper mark-uploaded"),
+			new HelpLine("/webmapper overlay on|off", "show or hide the green overlay on Xaero's map", "/webmapper overlay "),
+			new HelpLine("/webmapper clear [all]", "forget what's recorded in this dimension, or on this server",
+					"/webmapper clear "),
+			new HelpLine("/webmapper on|off", "turn the mod on or off", "/webmapper "));
 
 	/** {@code /webmapper help}. Clicking a command puts it in the chat box, so arguments can be filled in. */
 	private static int showHelp() {
 		MutableComponent message = Chat.info("Commands (/visited works the same):");
-		for (String[] command : HELP) {
-			message.append(Chat.line(Component.literal(command[0]).withStyle(style -> style
+		for (HelpLine line : HELP) {
+			message.append(Chat.line(Component.literal(line.shown()).withStyle(style -> style
 							.withColor(ChatFormatting.AQUA)
-							.withClickEvent(Platform.suggestCommand(command[2]))
+							.withClickEvent(Platform.suggestCommand(line.suggested()))
 							.withHoverEvent(Platform.showText("Click to put it in the chat box")))
-					.append(Component.literal(": " + command[1]).withStyle(ChatFormatting.GRAY))));
+					.append(Component.literal(": " + line.what()).withStyle(ChatFormatting.GRAY))));
 		}
 		reply(message.append(Chat.buttons(Chat.linkButton("More on GitHub", WebmapUpload.README))));
 		return 1;
