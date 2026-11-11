@@ -242,6 +242,7 @@ public final class XaeroExport {
 		private int ticks;
 		private int dimension;
 		private Path root;
+		private String stamp;
 		private boolean anyImages;
 		private Stage stage;
 		private long stageSince;
@@ -510,17 +511,21 @@ public final class XaeroExport {
 			boolean tiles = EXPORT_FOLDER.matcher(written.getFileName().toString()).matches();
 			Path image = null;
 			try {
-				if (job.root == null) {
+				if (folder == null) {
+					if (job.stamp == null) {
+						job.stamp = LocalDateTime.now().format(FOLDER_TIME);
+					}
 					Path mapExports = tiles ? written.getParent() : written;
-					String dimension = job.keys.size() == 1 ? VisitedChunks.shortName(key) + "-" : "";
 					String server = VISITED.server();
 					String serverFolder = server == null ? "unknown" : server.substring(server.indexOf('/') + 1);
-					String exportFolder = "aomc-webmapper-" + dimension + LocalDateTime.now().format(FOLDER_TIME);
-					job.root = mapExports.resolve(serverFolder).resolve(exportFolder);
-				}
-				if (folder == null) {
-					folder = job.keys.size() == 1 ? job.root : job.root.resolve(VisitedChunks.shortName(key));
+					// A folder per dimension, never one holding several: the webmap's upload page sends everything
+					// in a dropped folder to the one map picked there.
+					folder = mapExports.resolve(serverFolder)
+							.resolve("aomc-webmapper-" + VisitedChunks.shortName(key) + "-" + job.stamp);
 					Files.createDirectories(folder);
+					if (job.root == null) {
+						job.root = job.keys.size() == 1 ? folder : folder.getParent();
+					}
 				}
 				if (tiles) {
 					total = total.plus(TileMasker.mask(written, recorded));
@@ -580,7 +585,7 @@ public final class XaeroExport {
 			if (job.mode != Mode.NOT_FOR_WEBMAP) {
 				offerForWebmap();
 			}
-			String folderNote = job.keys.size() == 1 ? "" : " (" + VisitedChunks.shortName(key) + "/)";
+			String folderNote = job.keys.size() == 1 ? "" : " (" + folder.getFileName() + "/)";
 			String imageCount = left + (left == 1 ? " image" : " images");
 			String blackedOut = total.chunksBlackedOut() > 0
 					? ", " + total.chunksBlackedOut() + " older chunks blacked out" : "";
@@ -598,7 +603,7 @@ public final class XaeroExport {
 				AomcVisitedClient.LOGGER.error("Could not list {}", folder, e);
 				images = List.of();
 			}
-			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key, number, images);
+			WebmapUpload.Dimension upload = new WebmapUpload.Dimension(VISITED.server(), key, number, folder, images);
 			if (job.mode == Mode.UPLOAD) {
 				job.uploads.add(upload);
 			} else {
@@ -621,7 +626,7 @@ public final class XaeroExport {
 		}
 
 		private String where() {
-			return job.keys.size() == 1 ? "the export" : VisitedChunks.shortName(key) + "/";
+			return job.keys.size() == 1 ? "the export" : folder.getFileName() + "/";
 		}
 
 		private void fail(Component problem) {

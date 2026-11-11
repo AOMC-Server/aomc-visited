@@ -11,6 +11,7 @@ public final class Settings {
 	private final Path file;
 	private boolean enabled = true;
 	private boolean showOnMap = true;
+	private String webmapToken;
 
 	public Settings(Path file) {
 		this.file = file;
@@ -20,6 +21,7 @@ public final class Settings {
 				properties.load(in);
 				enabled = Boolean.parseBoolean(properties.getProperty("enabled", "true"));
 				showOnMap = Boolean.parseBoolean(properties.getProperty("showOnMap", "true"));
+				webmapToken = properties.getProperty("webmapToken");
 			} catch (IOException e) {
 				AomcVisitedClient.LOGGER.error("Could not read {}", file, e);
 			}
@@ -32,6 +34,15 @@ public final class Settings {
 
 	public synchronized boolean showOnMap() {
 		return showOnMap;
+	}
+
+	public synchronized String webmapToken() {
+		return webmapToken;
+	}
+
+	public synchronized void setWebmapToken(String token) {
+		webmapToken = token;
+		save();
 	}
 
 	public synchronized void setEnabled(boolean enabled) {
@@ -48,6 +59,9 @@ public final class Settings {
 		Properties properties = new Properties();
 		properties.setProperty("enabled", Boolean.toString(enabled));
 		properties.setProperty("showOnMap", Boolean.toString(showOnMap));
+		if (webmapToken != null) {
+			properties.setProperty("webmapToken", webmapToken);
+		}
 		try {
 			Files.createDirectories(file.getParent());
 			try (Writer out = Files.newBufferedWriter(file)) {

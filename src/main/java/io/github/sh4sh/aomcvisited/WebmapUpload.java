@@ -1,5 +1,10 @@
 package io.github.sh4sh.aomcvisited;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -13,17 +18,23 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 final class WebmapUpload {
 	static final String HOST = Target.HOST;
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
+	static final URI TOKEN_PAGE = WEBMAP.resolve("settings");
+	/** Xaero's export timestamp, which the webmap dates an upload by. */
+	private static final Pattern EXPORT_TIME = Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}\\.\\d{2}\\.\\d{2}");
 	static final URI ISSUES = URI.create("https://github.com/AOMC-Server/aomc-visited/issues");
 	private static final Set<String> KNOWN_SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
 			"server/161.129.180.145_25565", "server/161.129.180.145", "server/create.diorite.xyz",
@@ -35,7 +46,8 @@ final class WebmapUpload {
 	private static final Map<Integer, Dimension> EXPORTS = new HashMap<>();
 	private static volatile boolean running;
 
-	record Dimension(String server, String key, int export, List<Path> images) {
+	/** {@code root} is the export's dated folder, which {@code images} are in or below. */
+	record Dimension(String server, String key, int export, Path root, List<Path> images) {
 		String map() {
 			return webmapName(key);
 		}
@@ -78,6 +90,16 @@ final class WebmapUpload {
 		return running;
 	}
 
+	static Component cannotStart() {
+		if (running) {
+			return Chat.error("An upload is already running.");
+		}
+		if (AomcVisitedClient.SETTINGS.webmapToken() == null) {
+			return needsToken();
+		}
+		return null;
+	}
+
 	/** Null if the webmap has no map for it. */
 	static String webmapName(String key) {
 		return switch (VisitedChunks.dimensionOf(key)) {
@@ -89,8 +111,8 @@ final class WebmapUpload {
 	}
 
 	/**
-	 * Uploads each dimension's images one after another, has the webmap process them, then marks each
-	 * dimension whose images were all accepted and processed as uploaded. Runs in the background.
+	 * Uploads each dimension's images, waits for the webmap to process them, then marks each dimension
+	 * whose upload was processed as uploaded. Runs in the background.
 	 */
 	static void start(Minecraft client, List<Dimension> dimensions) {
 		for (Dimension dimension : dimensions) {
@@ -99,6 +121,11 @@ final class WebmapUpload {
 				Chat.send(client, refusal);
 				return;
 			}
+		}
+		Component problem = cannotStart();
+		if (problem != null) {
+			Chat.send(client, problem);
+			return;
 		}
 		running = true;
 		Thread.ofVirtual().name("AOMC Webmapper upload").start(() -> {
@@ -118,82 +145,185 @@ final class WebmapUpload {
 	/** Returns a problem for each dimension that didn't fully succeed. */
 	private static Map<Dimension, String> upload(Minecraft client, List<Dimension> dimensions) {
 		Map<Dimension, String> problems = new LinkedHashMap<>();
-		int total = dimensions.stream().mapToInt(dimension -> dimension.images().size()).sum();
-		int done = 0;
-		boolean anyUploaded = false;
+		String token = AomcVisitedClient.SETTINGS.webmapToken();
 		for (Dimension dimension : dimensions) {
-			for (Path image : dimension.images()) {
-				status(client, "uploading " + (++done) + " of " + total);
-				String problem = uploadImage(dimension.map(), image);
+			status(client, "uploading " + dimension.images().size() + " images to the " + dimension.map() + " map");
+			try {
+				String problem = uploadDimension(client, dimension, token);
 				if (problem != null) {
-					problems.put(dimension, image.getFileName() + ": " + problem);
-					break;
+					problems.put(dimension, problem);
 				}
-				anyUploaded = true;
+			} catch (IOException e) {
+				AomcVisitedClient.LOGGER.error("Could not upload {}", dimension.key(), e);
+				problems.put(dimension, "couldn't reach the webmap (" + e.getMessage() + ")");
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				problems.put(dimension, "the upload was interrupted");
 			}
-		}
-		if (!anyUploaded) {
-			return problems;
-		}
-		status(client, "the webmap is processing the upload");
-		try {
-			HttpRequest request = HttpRequest.newBuilder(WEBMAP.resolve("api/map/process"))
-					.header("User-Agent", USER_AGENT).timeout(Duration.ofMinutes(15))
-					.POST(HttpRequest.BodyPublishers.noBody()).build();
-			HttpResponse<Stream<String>> response = HTTP.send(request, HttpResponse.BodyHandlers.ofLines());
-			boolean complete = false;
-			if (response.statusCode() == 200) {
-				for (String line : (Iterable<String>) response.body()::iterator) {
-					AomcVisitedClient.LOGGER.info("[AOMC Webmapper] webmap: {}", line);
-					status(client, "webmap: " + line.strip());
-					complete |= line.startsWith("Processing complete");
-					if (line.contains("Error processing ")) {
-						for (Dimension dimension : dimensions) {
-							if (dimension.images().stream().anyMatch(image -> line.contains(image.getFileName().toString()))) {
-								problems.putIfAbsent(dimension, line.strip());
-							}
-						}
-					}
-				}
-			}
-			if (!complete) {
-				String problem = "the webmap didn't finish processing (HTTP " + response.statusCode() + ")";
-				dimensions.forEach(dimension -> problems.putIfAbsent(dimension, problem));
-			}
-		} catch (IOException | InterruptedException e) {
-			AomcVisitedClient.LOGGER.error("Webmap processing failed", e);
-			dimensions.forEach(dimension -> problems.putIfAbsent(dimension, "processing failed: " + e.getMessage()));
 		}
 		return problems;
 	}
 
-	/** Uploads one image. Returns a problem, or null if the webmap accepted it. */
-	private static String uploadImage(String dimension, Path image) {
-		String boundary = "aomcvisited" + UUID.randomUUID().toString().replace("-", "");
-		byte[] head = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\""
-				+ image.getFileName() + "\"\r\nContent-Type: image/png\r\n\r\n").getBytes(StandardCharsets.UTF_8);
-		byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
-		try {
-			HttpRequest request = HttpRequest.newBuilder(WEBMAP.resolve("api/map/upload/" + dimension))
-					.header("User-Agent", USER_AGENT).header("Content-Type", "multipart/form-data; boundary=" + boundary)
-					.timeout(Duration.ofMinutes(2))
-					.POST(HttpRequest.BodyPublishers.concat(HttpRequest.BodyPublishers.ofByteArray(head),
-							HttpRequest.BodyPublishers.ofFile(image), HttpRequest.BodyPublishers.ofByteArray(tail)))
-					.build();
-			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-			AomcVisitedClient.LOGGER.info("[AOMC Webmapper] upload: {} -> HTTP {} {}", image.getFileName(),
-					response.statusCode(), response.body());
-			if (response.statusCode() != 200) {
-				return "the webmap answered HTTP " + response.statusCode();
-			}
-			if (!response.body().replace(" ", "").contains("\"files_saved\":1")) {
-				return "the webmap didn't save it";
-			}
-			return null;
-		} catch (IOException | InterruptedException e) {
-			AomcVisitedClient.LOGGER.error("Could not upload {}", image, e);
-			return "couldn't reach the webmap (" + e.getMessage() + ")";
+	/** Returns a problem, or null if every revision the webmap made of the images was processed. */
+	private static String uploadDimension(Minecraft client, Dimension dimension, String token)
+			throws IOException, InterruptedException {
+		// The webmap dates each image by its path and counts undated ones as made now; tiles have no date in their names.
+		if (!EXPORT_TIME.matcher(dimension.root().getFileName().toString()).find()) {
+			return dimension.root().getFileName() + " has no date in its name, so the webmap would date the images now";
 		}
+		List<String> paths = new ArrayList<>();
+		for (Path image : dimension.images()) {
+			paths.add(dimension.root().getFileName() + "/"
+					+ dimension.root().relativize(image).toString().replace('\\', '/'));
+		}
+		String boundary = "aomcwebmapper" + UUID.randomUUID().toString().replace("-", "");
+		List<HttpRequest.BodyPublisher> parts = new ArrayList<>();
+		for (Path image : dimension.images()) {
+			parts.add(text("--" + boundary + "\r\nContent-Disposition: form-data; name=\"files[]\"; filename=\""
+					+ image.getFileName() + "\"\r\nContent-Type: image/png\r\n\r\n"));
+			parts.add(HttpRequest.BodyPublishers.ofFile(image));
+			parts.add(text("\r\n"));
+		}
+		JsonArray pathsJson = new JsonArray();
+		paths.forEach(pathsJson::add);
+		parts.add(field(boundary, "paths", pathsJson.toString()));
+		parts.add(field(boundary, "timeZone", ZoneId.systemDefault().getId()));
+		parts.add(text("--" + boundary + "--\r\n"));
+		HttpRequest request = api("api/dimensions/" + dimension.map() + "/uploads", token)
+				.header("Content-Type", "multipart/form-data; boundary=" + boundary)
+				.timeout(Duration.ofMinutes(10))
+				.POST(HttpRequest.BodyPublishers.concat(parts.toArray(HttpRequest.BodyPublisher[]::new)))
+				.build();
+		HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+		AomcVisitedClient.LOGGER.info("[AOMC Webmapper] upload: {} images to {} -> HTTP {} {}",
+				dimension.images().size(), dimension.map(), response.statusCode(), response.body());
+		if (response.statusCode() != 202) {
+			return refused(response);
+		}
+		JsonArray revisions = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonArray("revisionIds");
+		for (JsonElement revision : revisions) {
+			String problem = follow(client, revision.getAsLong(), token);
+			if (problem != null) {
+				return problem;
+			}
+		}
+		return null;
+	}
+
+	/** Returns a problem, or null if the revision was processed. */
+	private static String follow(Minecraft client, long revision, String token) throws IOException, InterruptedException {
+		HttpRequest events = api("api/revisions/" + revision + "/events", token)
+				.header("Accept", "text/event-stream").timeout(Duration.ofMinutes(15)).GET().build();
+		HttpResponse<Stream<String>> stream = HTTP.send(events, HttpResponse.BodyHandlers.ofLines());
+		if (stream.statusCode() == 200) {
+			String event = "";
+			for (String line : (Iterable<String>) stream.body()::iterator) {
+				if (line.startsWith("event:")) {
+					event = line.substring("event:".length()).strip();
+				} else if (line.startsWith("data:") && event.equals("processing")) {
+					status(client, "the webmap is processing: " + progress(line.substring("data:".length())));
+				}
+			}
+		}
+		HttpRequest get = api("api/revisions/" + revision, token).timeout(Duration.ofSeconds(30)).GET().build();
+		HttpResponse<String> response = HTTP.send(get, HttpResponse.BodyHandlers.ofString());
+		AomcVisitedClient.LOGGER.info("[AOMC Webmapper] revision {}: HTTP {} {}", revision, response.statusCode(),
+				response.body());
+		if (response.statusCode() != 200) {
+			return refused(response);
+		}
+		JsonObject result = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("revision");
+		String state = result.get("status").getAsString();
+		if (state.equals("done")) {
+			return null;
+		}
+		JsonElement error = result.get("error");
+		return state.equals("failed") && error != null && !error.isJsonNull()
+				? "the webmap couldn't process it: " + error.getAsString()
+				: "the webmap didn't finish processing it (" + state + ")";
+	}
+
+	private static String progress(String data) {
+		try {
+			JsonObject json = JsonParser.parseString(data).getAsJsonObject();
+			if (json.has("total") && json.has("done")) {
+				return json.get("done").getAsInt() + " of " + json.get("total").getAsInt();
+			}
+			if (json.has("message")) {
+				return json.get("message").getAsString();
+			}
+		} catch (RuntimeException e) {
+			// Not the JSON we expected: show it as it is.
+		}
+		return data.strip();
+	}
+
+	private static String refused(HttpResponse<String> response) {
+		if (response.statusCode() == 401) {
+			return "the webmap didn't accept your token. Make a new one on " + TOKEN_PAGE
+					+ " and set it with /visited token <token>";
+		}
+		String error = null;
+		try {
+			error = JsonParser.parseString(response.body()).getAsJsonObject().get("error").getAsString();
+		} catch (RuntimeException e) {
+			// No JSON error: the status code alone will do.
+		}
+		if (response.statusCode() == 403) {
+			return "the webmap refused it" + (error == null ? "" : " (" + error + ")")
+					+ ". Please check your token's configuration on " + TOKEN_PAGE;
+		}
+		return "the webmap answered HTTP " + response.statusCode() + (error == null ? "" : ": " + error);
+	}
+
+	static void checkToken(Minecraft client, String token) {
+		Thread.ofVirtual().name("AOMC Webmapper token check").start(() -> {
+			Component message;
+			try {
+				HttpResponse<String> response = HTTP.send(api("api/me", token).timeout(Duration.ofSeconds(30))
+						.GET().build(), HttpResponse.BodyHandlers.ofString());
+				JsonObject me = response.statusCode() == 200 ? JsonParser.parseString(response.body()).getAsJsonObject() : null;
+				JsonElement user = me == null ? null : me.get("user");
+				JsonElement scopes = me == null ? null : me.get("scopes");
+				if (user == null || !user.isJsonObject()) {
+					message = Chat.error("Token saved, but " + HOST + " didn't accept it. Check you copied all of it.");
+				} else if (scopes != null && scopes.isJsonArray() && !scopes.getAsJsonArray().contains(new JsonPrimitive("upload"))) {
+					message = Chat.error("Token saved, but it isn't allowed to upload. Please check your token's"
+							+ " configuration on " + TOKEN_PAGE + ".");
+				} else {
+					message = Chat.success("Token saved. Uploads to " + HOST + " go in as "
+							+ user.getAsJsonObject().get("username").getAsString() + ".");
+				}
+			} catch (IOException | RuntimeException e) {
+				AomcVisitedClient.LOGGER.error("Could not check the webmap token", e);
+				message = Chat.warning("Token saved, but " + HOST + " couldn't be reached to check it.");
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return;
+			}
+			Component report = message;
+			client.execute(() -> Chat.send(client, report));
+		});
+	}
+
+	static MutableComponent needsToken() {
+		return Chat.error("Uploading needs an API token from " + HOST + ". Log in there, make one under Settings,"
+				+ " then type /visited token <token>.")
+				.append(Chat.buttons(Chat.linkButton("Open " + HOST + " settings", TOKEN_PAGE)));
+	}
+
+	private static HttpRequest.Builder api(String path, String token) {
+		return HttpRequest.newBuilder(WEBMAP.resolve(path)).header("User-Agent", USER_AGENT)
+				.header("Authorization", "Bearer " + token);
+	}
+
+	private static HttpRequest.BodyPublisher field(String boundary, String name, String value) {
+		return text("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
+				+ value + "\r\n");
+	}
+
+	private static HttpRequest.BodyPublisher text(String text) {
+		return HttpRequest.BodyPublishers.ofByteArray(text.getBytes(StandardCharsets.UTF_8));
 	}
 
 	private static void finish(Minecraft client, List<Dimension> dimensions, Map<Dimension, String> problems) {

@@ -11,7 +11,7 @@ import java.util.Set;
 public class XaeroMixinPlugin implements IMixinConfigPlugin {
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-		return FabricLoader.getInstance().isModLoaded("xaeroworldmap");
+		return !targetClassName.startsWith("xaero.") || FabricLoader.getInstance().isModLoaded("xaeroworldmap");
 	}
 
 	@Override

@@ -4,6 +4,7 @@
 	"plugin": "io.github.sh4sh.aomcvisited.mixin.XaeroMixinPlugin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"CommandHistoryMixin",
 		"XaeroExportTaskMixin",
 		"XaeroMapWriterMixin",
 		"XaeroPNGExporterMixin",
