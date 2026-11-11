@@ -49,7 +49,8 @@ final class VisitedCommands {
 				.then(markUploadedCommand())
 				.then(literal("on").executes(context -> setEnabled(true)))
 				.then(literal("off").executes(context -> setEnabled(false)))
-				.then(overlayCommand());
+				.then(overlayCommand())
+				.then(tokenCommand());
 	}
 
 	private static LiteralArgumentBuilder<Object> exportCommand() {
@@ -88,6 +89,14 @@ final class VisitedCommands {
 				.executes(context -> setShow(!SETTINGS.showOnMap()))
 				.then(literal("on").executes(context -> setShow(true)))
 				.then(literal("off").executes(context -> setShow(false)));
+	}
+
+	private static LiteralArgumentBuilder<Object> tokenCommand() {
+		return literal("token")
+				.executes(context -> showToken())
+				.then(literal("forget").executes(context -> setToken(null)))
+				.then(argument("token", StringArgumentType.word())
+						.executes(context -> setToken(StringArgumentType.getString(context, "token"))));
 	}
 
 	private static boolean unavailable() {
@@ -241,6 +250,28 @@ final class VisitedCommands {
 		return 1;
 	}
 
+	/** {@code /visited token}: whether a token is set, and where to get one. */
+	private static int showToken() {
+		if (SETTINGS.webmapToken() == null) {
+			reply(WebmapUpload.needsToken());
+		} else {
+			reply(Chat.info("A token for " + WebmapUpload.HOST + " is set. Replace it with /visited token <token>,"
+					+ " or remove it with /visited token forget."));
+		}
+		return 1;
+	}
+
+	/** {@code /visited token <token>|forget}. Client commands stay on this computer: the server never sees it. */
+	private static int setToken(String token) {
+		SETTINGS.setWebmapToken(token);
+		if (token == null) {
+			reply(Chat.info("Token removed. Uploads are off until you set a new one."));
+		} else {
+			WebmapUpload.checkToken(Minecraft.getInstance(), token);
+		}
+		return 1;
+	}
+
 	private static int setShow(boolean show) {
 		SETTINGS.setShowOnMap(show);
 		refreshOverlay();
@@ -319,6 +350,10 @@ final class VisitedCommands {
 			reply(Chat.error("An upload is already running."));
 			return 0;
 		}
+		if (SETTINGS.webmapToken() == null) {
+			reply(WebmapUpload.needsToken());
+			return 0;
+		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
 		String command = "/visited upload" + target.commandSuffix();
 		String what = target.description();
@@ -355,6 +390,10 @@ final class VisitedCommands {
 		}
 		if (WebmapUpload.running()) {
 			reply(Chat.error("An upload is already running."));
+			return 0;
+		}
+		if (SETTINGS.webmapToken() == null) {
+			reply(WebmapUpload.needsToken());
 			return 0;
 		}
 		String what = export.images().size() + " images to the " + export.map() + " map";
