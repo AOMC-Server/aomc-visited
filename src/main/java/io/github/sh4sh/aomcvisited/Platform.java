@@ -74,6 +74,10 @@ public final class Platform implements ClientModInitializer {
 		return new ClickEvent.RunCommand(command);
 	}
 
+	static ClickEvent suggestCommand(String command) {
+		return new ClickEvent.SuggestCommand(command);
+	}
+
 	static ClickEvent openFile(Path path) {
 		return new ClickEvent.OpenFile(path);
 	}

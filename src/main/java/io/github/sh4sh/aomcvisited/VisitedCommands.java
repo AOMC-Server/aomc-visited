@@ -49,7 +49,8 @@ final class VisitedCommands {
 				.then(markUploadedCommand())
 				.then(literal("on").executes(context -> setEnabled(true)))
 				.then(literal("off").executes(context -> setEnabled(false)))
-				.then(overlayCommand());
+				.then(overlayCommand())
+				.then(literal("help").executes(context -> showHelp()));
 	}
 
 	private static LiteralArgumentBuilder<Object> exportCommand() {
@@ -143,7 +144,34 @@ final class VisitedCommands {
 			}
 			message.append(Chat.line(line));
 		});
-		reply(message);
+		reply(message.append(Chat.buttons(Chat.button("Help", ChatFormatting.AQUA, "/webmapper help",
+				"List the mod's commands"))));
+		return 1;
+	}
+
+	/** Each command as shown, what it does, and what clicking it puts in the chat box. */
+	private static final String[][] HELP = {
+			{"/webmapper", "how much is recorded, with Export and Upload buttons", "/webmapper"},
+			{"/webmapper upload [dimension]", "export, upload to the webmap, and mark as uploaded", "/webmapper upload "},
+			{"/webmapper export [dimension]", "export only, to check the images before uploading", "/webmapper export "},
+			{"/webmapper mark-uploaded", "mark the latest export as uploaded, after uploading it by hand",
+					"/webmapper mark-uploaded"},
+			{"/webmapper overlay on|off", "show or hide the green overlay on Xaero's map", "/webmapper overlay "},
+			{"/webmapper clear [all]", "forget what's recorded in this dimension, or on this server", "/webmapper clear "},
+			{"/webmapper on|off", "turn the mod on or off", "/webmapper "},
+	};
+
+	/** {@code /webmapper help}. Clicking a command puts it in the chat box, so arguments can be filled in. */
+	private static int showHelp() {
+		MutableComponent message = Chat.info("Commands (/visited works the same):");
+		for (String[] command : HELP) {
+			message.append(Chat.line(Component.literal(command[0]).withStyle(style -> style
+							.withColor(ChatFormatting.AQUA)
+							.withClickEvent(Platform.suggestCommand(command[2]))
+							.withHoverEvent(Platform.showText("Click to put it in the chat box")))
+					.append(Component.literal(": " + command[1]).withStyle(ChatFormatting.GRAY))));
+		}
+		reply(message.append(Chat.buttons(Chat.linkButton("More on GitHub", WebmapUpload.README))));
 		return 1;
 	}
 

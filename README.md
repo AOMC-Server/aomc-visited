@@ -38,6 +38,7 @@ can choose to continue with the last session or clear the data to start a new se
 | `/webmapper overlay on\|off` | Show or hide the green overlay on Xaero's map |
 | `/webmapper clear` | Forget what's recorded in your current dimension (asks to confirm) |
 | `/webmapper clear all` | Forget everything recorded on this server (asks to confirm) |
+| `/webmapper help` | List these commands in game |
 
 `/visited` works the same as `/webmapper`, e.g. `/visited upload`.
 
