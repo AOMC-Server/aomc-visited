@@ -39,7 +39,7 @@ final class VisitedCommands {
 		dispatcher.register(rootCommand("webmapper"));
 	}
 
-	/** {@code /webmapper} is the same command under the mod's name; messages and buttons use {@code /visited}. */
+	/** {@code /visited} is the same command under the mod's old name; messages and buttons use {@code /webmapper}. */
 	private static LiteralArgumentBuilder<Object> rootCommand(String name) {
 		return literal(name)
 				.executes(context -> showCounts())
@@ -49,7 +49,8 @@ final class VisitedCommands {
 				.then(markUploadedCommand())
 				.then(literal("on").executes(context -> setEnabled(true)))
 				.then(literal("off").executes(context -> setEnabled(false)))
-				.then(overlayCommand());
+				.then(overlayCommand())
+				.then(literal("help").executes(context -> showHelp()));
 	}
 
 	private static LiteralArgumentBuilder<Object> exportCommand() {
@@ -143,7 +144,38 @@ final class VisitedCommands {
 			}
 			message.append(Chat.line(line));
 		});
-		reply(message);
+		reply(message.append(Chat.buttons(Chat.button("Help", ChatFormatting.AQUA, "/webmapper help",
+				"List the mod's commands"))));
+		return 1;
+	}
+
+	private record HelpLine(String shown, String what, String suggested) {
+	}
+
+	private static final List<HelpLine> HELP = List.of(
+			new HelpLine("/webmapper", "how much is recorded, with Export and Upload buttons", "/webmapper"),
+			new HelpLine("/webmapper upload [dimension]", "export, upload to the webmap, and mark as uploaded",
+					"/webmapper upload "),
+			new HelpLine("/webmapper export [dimension]", "export only, to check the images before uploading",
+					"/webmapper export "),
+			new HelpLine("/webmapper mark-uploaded", "mark the latest export as uploaded, after uploading it by hand",
+					"/webmapper mark-uploaded"),
+			new HelpLine("/webmapper overlay on|off", "show or hide the green overlay on Xaero's map", "/webmapper overlay "),
+			new HelpLine("/webmapper clear [all]", "forget what's recorded in this dimension, or on this server",
+					"/webmapper clear "),
+			new HelpLine("/webmapper on|off", "turn the mod on or off", "/webmapper "));
+
+	/** {@code /webmapper help}. Clicking a command puts it in the chat box, so arguments can be filled in. */
+	private static int showHelp() {
+		MutableComponent message = Chat.info("Commands (/visited works the same):");
+		for (HelpLine line : HELP) {
+			message.append(Chat.line(Component.literal(line.shown()).withStyle(style -> style
+							.withColor(ChatFormatting.AQUA)
+							.withClickEvent(Platform.suggestCommand(line.suggested()))
+							.withHoverEvent(Platform.showText("Click to put it in the chat box")))
+					.append(Component.literal(": " + line.what()).withStyle(ChatFormatting.GRAY))));
+		}
+		reply(message.append(Chat.buttons(Chat.linkButton("More on GitHub", WebmapUpload.README))));
 		return 1;
 	}
 
@@ -156,7 +188,7 @@ final class VisitedCommands {
 		if (!confirm) {
 			reply(Chat.warning("This will forget the " + VISITED.count(dimension) + " chunks"
 					+ " recorded in " + id + ", so the next export starts from scratch.")
-					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear confirm",
+					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/webmapper clear confirm",
 							"Forget the record for " + id))));
 			return 1;
 		}
@@ -181,7 +213,7 @@ final class VisitedCommands {
 		if (!confirm) {
 			int total = others.stream().mapToInt(VISITED::size).sum();
 			reply(Chat.warning("This will forget the " + total + " chunks recorded in " + names + ".")
-					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear others "
+					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/webmapper clear others "
 							+ VisitedChunks.shortName(record) + " confirm", "Forget " + names))));
 			return 1;
 		}
@@ -199,7 +231,7 @@ final class VisitedCommands {
 			int total = VISITED.counts().values().stream().mapToInt(Integer::intValue).sum();
 			reply(Chat.warning("This will forget all " + total + " chunks recorded on this server,"
 					+ " in every dimension, so the next export starts from scratch.")
-					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/visited clear all confirm",
+					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.RED, "/webmapper clear all confirm",
 							"Forget the record in every dimension"))));
 			return 1;
 		}
@@ -215,14 +247,14 @@ final class VisitedCommands {
 			return 0;
 		}
 		if (export < 0) {
-			reply(Chat.error("There's no export to mark as uploaded. To start over, use /visited"
+			reply(Chat.error("There's no export to mark as uploaded. To start over, use /webmapper"
 					+ " clear."));
 			return 0;
 		}
 		int forgotten = VISITED.markUploaded(export);
 		if (forgotten < 0) {
 			reply(Chat.error("That export was already marked as uploaded, or its record was cleared"
-					+ " since. To start over, use /visited clear."));
+					+ " since. To start over, use /webmapper clear."));
 			return 0;
 		}
 		refreshOverlay();
@@ -235,9 +267,9 @@ final class VisitedCommands {
 		SETTINGS.setEnabled(enabled);
 		refreshOverlay();
 		reply(Chat.info(enabled
-				? "AOMC Webmapper is on: recording what Xaero's World Map maps. Turn it off with /visited off."
+				? "AOMC Webmapper is on: recording what Xaero's World Map maps. Turn it off with /webmapper off."
 				: "AOMC Webmapper is off: nothing is recorded or shown, and what's already recorded is kept. Turn it"
-						+ " back on with /visited on."));
+						+ " back on with /webmapper on."));
 		return 1;
 	}
 
@@ -245,8 +277,8 @@ final class VisitedCommands {
 		SETTINGS.setShowOnMap(show);
 		refreshOverlay();
 		reply(Chat.info(show
-				? "Showing what the next export will keep on Xaero's World Map. Hide it with /visited overlay off."
-				: "No longer showing the record on Xaero's World Map. Show it again with /visited overlay on."));
+				? "Showing what the next export will keep on Xaero's World Map. Hide it with /webmapper overlay off."
+				: "No longer showing the record on Xaero's World Map. Show it again with /webmapper overlay on."));
 		return 1;
 	}
 
@@ -265,7 +297,7 @@ final class VisitedCommands {
 	}
 
 	static String recordCommand(String verb, String key) {
-		return "/visited " + verb + " record " + VisitedChunks.shortName(key);
+		return "/webmapper " + verb + " record " + VisitedChunks.shortName(key);
 	}
 
 	private static RequiredArgumentBuilder<Object, String> recordArgument() {
@@ -276,7 +308,7 @@ final class VisitedCommands {
 		String name = StringArgumentType.getString(context, "name");
 		String key = VisitedChunks.keyOf(name);
 		if (key == null) {
-			throw new SimpleCommandExceptionType(Component.literal("No record called " + name + "; see /visited")).create();
+			throw new SimpleCommandExceptionType(Component.literal("No record called " + name + "; see /webmapper")).create();
 		}
 		return key;
 	}
@@ -320,7 +352,7 @@ final class VisitedCommands {
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited upload" + target.commandSuffix();
+		String command = "/webmapper upload" + target.commandSuffix();
 		String what = target.description();
 		if (!packs.isEmpty()) {
 			reply(Chat.warning("Resource packs change the colours of the map, so they have to be off for"
@@ -350,7 +382,7 @@ final class VisitedCommands {
 		WebmapUpload.Dimension export = WebmapUpload.export(number);
 		if (export == null) {
 			reply(Chat.error("That export's images aren't known any more: it's from an earlier session,"
-					+ " or a newer export replaced it. Use /visited upload to export and upload again."));
+					+ " or a newer export replaced it. Use /webmapper upload to export and upload again."));
 			return 0;
 		}
 		if (WebmapUpload.running()) {
@@ -361,12 +393,12 @@ final class VisitedCommands {
 		if (!confirmed) {
 			reply(Chat.info("Upload " + what + " on " + WebmapUpload.HOST + "? They're marked as uploaded once"
 					+ " the webmap has processed them.")
-					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/visited upload " + number
+					.append(Chat.buttons(Chat.button("Confirm", ChatFormatting.GREEN, "/webmapper upload " + number
 							+ " confirm", "Upload " + what))));
 			return 1;
 		}
 		if (!export.images().stream().allMatch(java.nio.file.Files::isRegularFile)) {
-			reply(Chat.error("Some of that export's images were moved or deleted. Use /visited upload"
+			reply(Chat.error("Some of that export's images were moved or deleted. Use /webmapper upload"
 					+ " to export and upload again."));
 			return 0;
 		}
@@ -383,7 +415,7 @@ final class VisitedCommands {
 			return 0;
 		}
 		List<String> packs = ResourcePacks.playerPacks(Minecraft.getInstance());
-		String command = "/visited export" + target.commandSuffix();
+		String command = "/webmapper export" + target.commandSuffix();
 		if (!packs.isEmpty() && !withPacks) {
 			reply(Chat.warning("Resource packs change the colours of the exported map. These are on:")
 					.append(Chat.line(String.join(", ", packs)))

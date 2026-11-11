@@ -25,6 +25,7 @@ final class WebmapUpload {
 	static final String HOST = Target.HOST;
 	private static final URI WEBMAP = URI.create("https://" + HOST + "/");
 	static final URI ISSUES = URI.create("https://github.com/AOMC-Server/aomc-visited/issues");
+	static final URI README = URI.create("https://github.com/AOMC-Server/aomc-visited#readme");
 	private static final Set<String> KNOWN_SERVERS = Set.of("server/mc.aboutoliver.com", "server/mc.diorite.xyz",
 			"server/161.129.180.145_25565", "server/161.129.180.145", "server/create.diorite.xyz",
 			"server/gw.algot.net_25037", "server/gw.algot.net_25030");

@@ -110,7 +110,7 @@ public final class XaeroExport {
 	 */
 	static Component start(Minecraft client, ExportTarget target, Mode mode, Runnable whenDone) {
 		if (!AomcVisitedClient.SETTINGS.enabled()) {
-			return Chat.error("AOMC Webmapper is off. Turn it on with /visited on.");
+			return Chat.error("AOMC Webmapper is off. Turn it on with /webmapper on.");
 		}
 		if (active()) {
 			return Chat.error("An export is already running.");
@@ -206,11 +206,11 @@ public final class XaeroExport {
 		// /visited's buttons make webmap exports, so they'd lose not-for-webmap.
 		boolean moreButton = more > 0 && mode != Mode.NOT_FOR_WEBMAP;
 		if (moreButton) {
-			buttons.add(Chat.button(more + " more", ChatFormatting.AQUA, "/visited", "Lists every record, each with its"
+			buttons.add(Chat.button(more + " more", ChatFormatting.AQUA, "/webmapper", "Lists every record, each with its"
 					+ " own buttons"));
 		}
 		String dimension = VisitedChunks.shortName(VisitedChunks.dimensionOf(records.getFirst()));
-		String unlisted = more > 0 && !moreButton ? " (" + more + " more: see /visited)" : "";
+		String unlisted = more > 0 && !moreButton ? " (" + more + " more: see /webmapper)" : "";
 		MutableComponent line = Chat.line(Component.literal(dimension + ": recorded in " + records.size()
 				+ " cave modes, which all go to the " + map + " map. Pick one" + unlisted + ":")
 				.withStyle(ChatFormatting.GOLD));
@@ -604,10 +604,10 @@ public final class XaeroExport {
 			} else {
 				WebmapUpload.remember(upload);
 				job.buttons.add(Chat.button("Upload " + VisitedChunks.shortName(key), ChatFormatting.GREEN,
-						"/visited upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
+						"/webmapper upload " + number, "Uploads " + where() + " to " + WebmapUpload.HOST
 								+ ", then marks it as uploaded (asks to confirm first)"));
 				job.markButtons.add(Chat.button("Mark " + VisitedChunks.shortName(key) + " as uploaded",
-						ChatFormatting.DARK_GREEN, "/visited mark-uploaded " + number, "Click once " + where()
+						ChatFormatting.DARK_GREEN, "/webmapper mark-uploaded " + number, "Click once " + where()
 								+ " has been uploaded by hand: forgets what it contained, so the next export only has"
 								+ " areas mapped since. Works after a restart too."));
 			}
@@ -616,7 +616,7 @@ public final class XaeroExport {
 				String hover = "Forget what else was recorded for the " + WebmapUpload.webmapName(key) + " map, in "
 						+ VisitedChunks.displayNames(others) + " (asks to confirm first)";
 				job.clearButtons.add(Chat.button("Clear the rest", ChatFormatting.RED,
-						"/visited clear others " + VisitedChunks.shortName(key), hover));
+						"/webmapper clear others " + VisitedChunks.shortName(key), hover));
 			}
 		}
 
