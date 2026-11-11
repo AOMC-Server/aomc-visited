@@ -90,7 +90,6 @@ final class WebmapUpload {
 		return running;
 	}
 
-	/** Why an upload can't start now, or null if it can. */
 	static Component cannotStart() {
 		if (running) {
 			return Chat.error("An upload is already running.");
@@ -165,10 +164,7 @@ final class WebmapUpload {
 		return problems;
 	}
 
-	/**
-	 * Sends a dimension's images in one request, then follows each revision the webmap makes of them.
-	 * Returns a problem, or null if every revision was processed.
-	 */
+	/** Returns a problem, or null if every revision the webmap made of the images was processed. */
 	private static String uploadDimension(Minecraft client, Dimension dimension, String token)
 			throws IOException, InterruptedException {
 		// The webmap dates each image by its path and counts undated ones as made now; tiles have no date in their names.
@@ -214,7 +210,7 @@ final class WebmapUpload {
 		return null;
 	}
 
-	/** Shows the webmap's progress on a revision until it ends. Returns a problem, or null if it was processed. */
+	/** Returns a problem, or null if the revision was processed. */
 	private static String follow(Minecraft client, long revision, String token) throws IOException, InterruptedException {
 		HttpRequest events = api("api/revisions/" + revision + "/events", token)
 				.header("Accept", "text/event-stream").timeout(Duration.ofMinutes(15)).GET().build();
@@ -262,7 +258,6 @@ final class WebmapUpload {
 		return data.strip();
 	}
 
-	/** Why the webmap refused a request, from its {@code {"error": ...}} answer. */
 	private static String refused(HttpResponse<String> response) {
 		if (response.statusCode() == 401) {
 			return "the webmap didn't accept your token. Make a new one on " + TOKEN_PAGE
@@ -281,7 +276,6 @@ final class WebmapUpload {
 		return "the webmap answered HTTP " + response.statusCode() + (error == null ? "" : ": " + error);
 	}
 
-	/** Checks the token in the background and says whose account it is. */
 	static void checkToken(Minecraft client, String token) {
 		Thread.ofVirtual().name("AOMC Webmapper token check").start(() -> {
 			Component message;
@@ -312,7 +306,6 @@ final class WebmapUpload {
 		});
 	}
 
-	/** Tells the player how to get a token. */
 	static MutableComponent needsToken() {
 		return Chat.error("Uploading needs an API token from " + HOST + ". Log in there, make one under Settings,"
 				+ " then type /visited token <token>.")

@@ -36,7 +36,6 @@ public final class Settings {
 		return showOnMap;
 	}
 
-	/** The player's API token for the webmap, or null. */
 	public synchronized String webmapToken() {
 		return webmapToken;
 	}
